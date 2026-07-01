@@ -55,19 +55,8 @@ body{
 .hdr-title{font-size:16px;font-weight:700}
 .hdr-sub{font-size:11px;color:var(--txt3)}
 
-/* ── Tabs ── */
-.tabs{
-  width:100%;flex-shrink:0;
-  display:flex;background:var(--bg2);
-  border-bottom:1px solid var(--line);
-}
-.tab{
-  flex:1;padding:9px 0;
-  background:transparent;border:none;
-  color:var(--txt3);font-size:14px;font-weight:500;cursor:pointer;
-  border-bottom:2px solid transparent;transition:color .2s,border-color .2s;
-}
-.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+/* ── Tabs (非表示) ── */
+.tabs{ display:none; }
 
 /* ── Outer: fills remaining viewport height ── */
 .outer{
@@ -197,13 +186,19 @@ body.pres-mode .graph-maxbtn{
   bottom:auto;top:10px;right:10px;
 }
 
-/* ── 設定エリア（スクロール可能） ── */
+/* ── 設定エリア（外枠: flex列。上部カードはスクロール内、基準音出力は底固定） ── */
 .t-settings{
   grid-area:settings;
+  overflow:hidden;
+  max-height:44vh;
+  padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  display:flex;flex-direction:column;
+}
+/* スクロール可能な上部カード群 */
+.t-settings-scroll{
+  flex:1;min-height:0;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
-  max-height:36vh;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── メトロノーム上部（BPM＋スライダー＋開始ボタン） ── */
@@ -218,20 +213,24 @@ body.pres-mode .graph-maxbtn{
 .metro-bpm-big{font-size:52px;font-weight:800;line-height:1;}
 /* 刻みトグル＋±ボタン行 */
 .metro-step-row{ display:flex; align-items:center; gap:5px; }
-/* ── メトロノーム下部（チップ類） ── */
+/* ── メトロノーム下部（外枠: flex列。上部カードはスクロール内、クリック音量は底固定） ── */
 .t-metro-btm{
   grid-area:metro-btm;
-  overflow-y:auto;
-  -webkit-overflow-scrolling:touch;
+  overflow:hidden;
   min-height:0;
   /* portrait: グラフが潰れないようカード列の最大高さを制限 */
   max-height:44vh;
   padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
   display:flex;flex-direction:column;
 }
+/* スクロール可能な上部カード群 */
+.t-metro-scroll{
+  flex:1;min-height:0;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
 .t-metro-btm .card{ margin-top:7px; }
 .t-metro-btm .card:first-child{ margin-top:0; }
-.t-metro-btm .card:last-child{ margin-top:auto; }
 /* metro内のチップを詰める */
 .t-metro-btm .chip{ font-size:10px; padding:6px 1px; }
 /* 8分音符モード時に分割ボタンを無効化 */
@@ -338,13 +337,13 @@ input[type=range]::-webkit-slider-thumb{
   /* 左カラム: 設定 */
   .t-settings{
     max-height:none;
-    overflow-y:auto;
-    padding-bottom:10px;
+    overflow:hidden;
+    padding-bottom:4px;
   }
 
   /* 右端カラム: メトロノーム（上下分割） */
   .t-metro-top{ padding:4px 0; }
-  .t-metro-btm{ padding-bottom:4px; overflow-y:auto; max-height:none; }
+  .t-metro-btm{ padding-bottom:4px; overflow:hidden; max-height:none; }
   .metro-bpm-big{font-size:38px;}
 
   /* 中央カラム: グラフ (2行にスパン) */
@@ -370,7 +369,7 @@ input[type=range]::-webkit-slider-thumb{
   /* BPMを少し小さく */
   .metro-bpm-big{font-size:44px;}
   /* 設定エリアの上限を下げてグラフの高さを確保 */
-  .t-settings{max-height:30vh;}
+  .t-settings{max-height:38vh;}
   .t-metro-btm{max-height:38vh;}
 }
 
@@ -397,42 +396,6 @@ input[type=range]::-webkit-slider-thumb{
   .metro-chip-2col{gap:3px;}
 }
 
-/* ════════════════════
-   TONE GENERATOR PANEL
-   ════════════════════ */
-.tone-panel{
-  flex:1;min-height:0;
-  display:flex;flex-direction:column;
-  padding:10px 12px 20px;
-  gap:9px;
-  overflow-y:auto;
-  -webkit-overflow-scrolling:touch;
-}
-.kbd-card{background:var(--bg3);border-radius:12px;padding:12px 11px;flex-shrink:0}
-.piano{position:relative;display:flex;height:90px;margin:7px 0}
-.wk{
-  flex:1;border-radius:0 0 5px 5px;
-  background:#e8e8e8;border:none;cursor:pointer;position:relative;
-  border-right:1px solid #aaa;
-  transition:background .08s;
-}
-.wk:last-child{border-right:none}
-.wk:active,.wk.pl{background:#9dd8ff}
-/* 黒鍵: 白鍵1本分の60%幅、隣接白鍵の境界に中心が来るよう配置 */
-.bk{
-  position:absolute;top:0;
-  width:calc(100% / 7 * 0.60);  /* 白鍵幅の60% */
-  height:62%;
-  border-radius:0 0 4px 4px;
-  background:#222;border:none;cursor:pointer;z-index:2;
-  box-shadow:2px 4px 6px rgba(0,0,0,.7);transition:background .08s;
-}
-.bk:active,.bk.pl{background:var(--blue)}
-.klbl{
-  position:absolute;bottom:4px;left:50%;
-  transform:translateX(-50%);
-  font-size:8px;color:#777;pointer-events:none;white-space:nowrap;
-}
 /* ── メトロノーム ── */
 .metro-light{
   display:inline-block;width:12px;height:12px;border-radius:50%;
@@ -441,37 +404,29 @@ input[type=range]::-webkit-slider-thumb{
 }
 .metro-bpm-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
 
-.oct-row{display:flex;gap:6px;justify-content:center;margin-top:4px}
-.oct-btn{
-  padding:5px 13px;border-radius:18px;
+/* ── 基準音出力（チューナー設定内） ── */
+.tone-note-grid{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:3px;
+}
+.tnote{
+  padding:5px 1px;border-radius:7px;
   border:1.5px solid var(--bg4);background:var(--bg4);
-  color:var(--txt3);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;
+  color:var(--txt2);font-size:10px;font-weight:500;
+  cursor:pointer;text-align:center;transition:all .15s;line-height:1.2;
 }
-.oct-btn.on{background:var(--blue);border-color:var(--blue);color:#fff}
-.tone-note{
-  text-align:center;font-size:15px;font-weight:600;
-  color:var(--blue);min-height:21px;margin-top:4px;
-}
-.vol-row{display:flex;align-items:center;gap:9px;margin-top:6px}
-.vol-row span{font-size:14px}
-.wave-grid{display:flex;gap:5px}
-.wave-btn{
-  flex:1;padding:7px 2px;border-radius:9px;
-  border:1.5px solid var(--bg4);background:var(--bg4);
-  color:var(--txt2);font-size:11px;font-weight:500;
-  cursor:pointer;text-align:center;line-height:1.35;transition:all .15s;
-}
-.wave-btn.on{background:#0a84ff18;border-color:var(--blue);color:var(--blue)}
+.tnote.acc{ background:var(--bg3);color:var(--txt3);font-size:9px; }
+.tnote.pl,.tnote.on{ background:#0a84ff18;border-color:var(--blue);color:var(--blue); }
 
-@media (orientation:landscape) and (min-width:600px){
-  .tone-panel{flex-direction:row;flex-wrap:wrap;padding:8px 12px 14px}
-  .kbd-card{flex:1;min-width:260px}
-  .tone-panel > .card{flex:0 0 calc(50% - 9px)}
-}
 @media (max-width:360px){
   .note-letter{font-size:72px}
-  .piano{height:70px}
 }
+
+/* ── メトロノーム音量スライダー ── */
+.metro-vol-row{ display:flex; align-items:center; gap:5px; margin-top:4px; }
+.metro-vol-row:first-child{ margin-top:0; }
+.metro-vol-lbl{ font-size:9px; color:var(--txt3); white-space:nowrap; min-width:44px; }
+.metro-vol-val{ font-size:9px; color:var(--txt2); min-width:26px; text-align:right; }
+.metro-vol-sl{ flex:1; min-width:0; }
 </style>
 </head>
 <body>
@@ -481,10 +436,6 @@ input[type=range]::-webkit-slider-thumb{
   <div class="hdr-sub">プロトタイプ版</div>
 </div>
 
-<div class="tabs">
-  <button class="tab on" onclick="showPanel('tuner',this)">チューナー</button>
-  <button class="tab"    onclick="showPanel('tone',this)">トーン生成</button>
-</div>
 
 <div class="outer">
 
@@ -516,6 +467,9 @@ input[type=range]::-webkit-slider-thumb{
 
       <!-- SETTINGS: 下部スクロールエリア -->
       <div class="t-settings">
+
+        <!-- スクロール可能な上部カード群 -->
+        <div class="t-settings-scroll">
 
         <div class="card">
           <div class="card-lbl">移調楽器モード</div>
@@ -569,6 +523,48 @@ input[type=range]::-webkit-slider-thumb{
           </div>
         </div>
 
+        </div><!-- /t-settings-scroll -->
+
+        <!-- 基準音出力（底に固定） -->
+        <div class="card">
+          <div class="card-lbl">基準音出力</div>
+          <!-- オクターブ選択 -->
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
+            <span class="spd-lbl">oct:</span>
+            <button class="chip tone-oct"    onclick="setToneOct(3,this)">3</button>
+            <button class="chip on tone-oct" onclick="setToneOct(4,this)">4</button>
+            <button class="chip tone-oct"    onclick="setToneOct(5,this)">5</button>
+          </div>
+          <!-- 12音クロマチックグリッド (6列×2行) -->
+          <div class="tone-note-grid">
+            <button class="tnote"     onclick="tapToneNote(0,this)">C</button>
+            <button class="tnote acc" onclick="tapToneNote(1,this)">C♯</button>
+            <button class="tnote"     onclick="tapToneNote(2,this)">D</button>
+            <button class="tnote acc" onclick="tapToneNote(3,this)">D♯</button>
+            <button class="tnote"     onclick="tapToneNote(4,this)">E</button>
+            <button class="tnote"     onclick="tapToneNote(5,this)">F</button>
+            <button class="tnote acc" onclick="tapToneNote(6,this)">F♯</button>
+            <button class="tnote"     onclick="tapToneNote(7,this)">G</button>
+            <button class="tnote acc" onclick="tapToneNote(8,this)">G♯</button>
+            <button class="tnote"     onclick="tapToneNote(9,this)">A</button>
+            <button class="tnote acc" onclick="tapToneNote(10,this)">A♯</button>
+            <button class="tnote"     onclick="tapToneNote(11,this)">B</button>
+          </div>
+          <!-- 再生中の音名 -->
+          <div id="toneNote" style="font-size:11px;font-weight:500;color:var(--blue);min-height:15px;margin-top:4px;text-align:center"></div>
+          <!-- 音量 -->
+          <div class="spd-row" style="margin-top:5px">
+            <span class="spd-lbl">🔇</span>
+            <input type="range" id="volSl" min="0" max="100" value="65">
+            <span class="spd-lbl">🔊</span>
+          </div>
+          <!-- 波形タイプ -->
+          <div class="chip-row" style="margin-top:5px">
+            <button class="chip on tone-wave" onclick="setWave('sine',this)">サイン<br><small>純音</small></button>
+            <button class="chip tone-wave"    onclick="setWave('triangle',this)">三角<br><small>柔らか</small></button>
+            <button class="chip tone-wave"    onclick="setWave('square',this)">矩形<br><small>強め</small></button>
+          </div>
+        </div>
 
       </div><!-- /t-settings -->
 
@@ -603,6 +599,9 @@ input[type=range]::-webkit-slider-thumb{
 
       <!-- ── メトロノーム下部（チップ類） ── -->
       <div class="t-metro-btm">
+
+        <!-- スクロール可能な上部カード群 -->
+        <div class="t-metro-scroll">
 
         <!-- 拍子: 3×5 グリッド（単純拍子＋8分音符系） -->
         <div class="card">
@@ -665,47 +664,40 @@ input[type=range]::-webkit-slider-thumb{
           </div>
         </div>
 
+        </div><!-- /t-metro-scroll -->
+
+        <!-- クリック音量（底に固定） -->
+        <div class="card">
+          <div class="card-lbl">クリック音量</div>
+          <div class="metro-vol-row">
+            <span class="metro-vol-lbl">全体</span>
+            <input type="range" class="metro-vol-sl" min="0" max="1" step="0.05" value="0.72"
+                   oninput="setMetroVol(this,'master','vv-master')">
+            <span class="metro-vol-val" id="vv-master">72%</span>
+          </div>
+          <div class="metro-vol-row">
+            <span class="metro-vol-lbl">アクセント</span>
+            <input type="range" class="metro-vol-sl" min="0" max="1" step="0.05" value="1.0"
+                   oninput="setMetroVol(this,'accent','vv-accent')">
+            <span class="metro-vol-val" id="vv-accent">100%</span>
+          </div>
+          <div class="metro-vol-row">
+            <span class="metro-vol-lbl">拍頭</span>
+            <input type="range" class="metro-vol-sl" min="0" max="1" step="0.05" value="0.75"
+                   oninput="setMetroVol(this,'beat','vv-beat')">
+            <span class="metro-vol-val" id="vv-beat">75%</span>
+          </div>
+          <div class="metro-vol-row">
+            <span class="metro-vol-lbl">分割</span>
+            <input type="range" class="metro-vol-sl" min="0" max="1" step="0.05" value="0.45"
+                   oninput="setMetroVol(this,'subdiv','vv-subdiv')">
+            <span class="metro-vol-val" id="vv-subdiv">45%</span>
+          </div>
+        </div>
+
       </div><!-- /t-metro-btm -->
     </div><!-- /tuner-layout -->
   </div><!-- /tuner panel -->
-
-  <!-- ═══ TONE PANEL ═══ -->
-  <div class="panel" id="panel-tone">
-    <div class="tone-panel">
-
-      <div class="kbd-card">
-        <div class="card-lbl">オクターブ</div>
-        <div class="oct-row" id="octRow"></div>
-        <div class="card-lbl" style="margin-top:10px">鍵盤（タップで音が出ます）</div>
-        <div class="piano" id="piano"></div>
-        <div class="tone-note" id="toneNote"></div>
-        <div class="vol-row">
-          <span>🔇</span>
-          <input type="range" id="volSl" min="0" max="100" value="65">
-          <span>🔊</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-lbl">波形タイプ</div>
-        <div class="wave-grid">
-          <button class="wave-btn on" onclick="setWave('sine',this)">サイン波<br><small>純音</small></button>
-          <button class="wave-btn"    onclick="setWave('triangle',this)">三角波<br><small>柔らか</small></button>
-          <button class="wave-btn"    onclick="setWave('square',this)">矩形波<br><small>強め</small></button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-lbl">A4 基準音</div>
-        <div class="a4-row">
-          <button class="pm-btn" onclick="adjA4(-1)">−</button>
-          <div><span class="a4-num" id="a4n2">442</span><span class="a4-unit">Hz</span></div>
-          <button class="pm-btn" onclick="adjA4(+1)">+</button>
-        </div>
-      </div>
-
-    </div>
-  </div><!-- /tone panel -->
 
 </div><!-- /outer -->
 
@@ -738,31 +730,19 @@ const NOTES_FLAT  = ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭',
 const SOLFEGE     = ['ド','ド♯','レ','レ♯','ミ','ファ','ファ♯','ソ','ソ♯','ラ','ラ♯','シ'];
 const NLABELS     = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
-// 周波数ロック（倍音フィルター用）
+// 周波数ロック（安定化フィルター用）
 let lockedFreq = null;
 let harmCount  = 0;
-const HARM_CONFIRM = 4; // 倍音が何フレーム連続したら本当の音域変化と認識するか (~66ms)
+const HARM_CONFIRM = 5; // 異音が何フレーム連続したら本当の音高変化と認識するか (~83ms)
 
-// 倍音判定: freq が ref の 2x/3x/4x/0.5x/0.33x に近いか
-function isHarmonic(freq, ref){
-  if(!ref||ref<=0) return false;
-  const ratio=freq/ref;
-  for(const r of [2,3,4,0.5,0.333]){
-    if(Math.abs(ratio/r-1)<0.07) return true; // ±7%(≈±1.2半音)
-  }
-  return false;
+// セント差（任意2周波数間）
+function centsDiff(f1, f2){
+  if(!f1||!f2||f1<=0||f2<=0) return 9999;
+  return Math.abs(1200*Math.log2(f1/f2));
 }
 
 // ══════════════════════════════════════
 //  PANEL / TAB
-// ══════════════════════════════════════
-function showPanel(id,btn){
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  document.getElementById('panel-'+id).classList.add('on');
-  btn.classList.add('on');
-}
-
 // ══════════════════════════════════════
 //  CANVAS  –  動的リサイズ
 // ══════════════════════════════════════
@@ -939,49 +919,49 @@ function autoCorrelate(buf,sr){
   let rms=0;
   for(let i=0;i<N;i++) rms+=buf[i]*buf[i];
   rms=Math.sqrt(rms/N);
-  if(rms<0.009) return -1;
+  if(rms<0.012) return -1;  // ノイズ閾値を高めに
 
   const minL=Math.floor(sr/2100);
-  const maxL=Math.ceil(sr/58);
-  let bestL=-1,bestV=-Infinity;
+  const maxL=Math.min(Math.ceil(sr/58), Math.floor(N/2)-1);
 
-  for(let lag=minL;lag<=Math.min(maxL,N/2);lag++){
+  // NSDF を全ラグ計算（補間用に前後1ラグ余分に）
+  const nsdf=new Float32Array(maxL+2);
+  for(let lag=Math.max(1,minL-1); lag<=maxL+1; lag++){
     let c=0,n=0;
     const len=N-lag;
     for(let i=0;i<len;i++){
       c+=buf[i]*buf[i+lag];
       n+=buf[i]*buf[i]+buf[i+lag]*buf[i+lag];
     }
-    const v=n>0?2*c/n:0;
-    if(v>bestV){bestV=v;bestL=lag;}
-  }
-  if(bestV<0.45||bestL<1) return -1;
-
-  // ── 基音優先: 検出lagの整数倍(低オクターブ)も相関が高ければそちらを採用 ──
-  // 倍音(2f, 3f...)を検出してしまった場合、lag*2 や lag*3 に基音がある
-  const nsdfAt=lag=>{
-    if(lag<minL||lag>maxL||lag>=N/2) return -1;
-    let c=0,n=0;const len=N-lag;
-    for(let i=0;i<len;i++){c+=buf[i]*buf[i+lag];n+=buf[i]*buf[i]+buf[i+lag]*buf[i+lag];}
-    return n>0?2*c/n:0;
-  };
-  for(const mult of [2,3]){
-    const subL=Math.round(bestL*mult);
-    const subV=nsdfAt(subL);
-    if(subV>0.45&&subV>bestV*0.78){bestL=subL;bestV=subV;}
+    nsdf[lag]=n>0?2*c/n:0;
   }
 
-  if(bestL>0&&bestL<N/2-1){
-    const f=lag=>{
-      let c=0,n=0;const len=N-lag;
-      for(let i=0;i<len;i++){c+=buf[i]*buf[i+lag];n+=buf[i]*buf[i]+buf[i+lag]*buf[i+lag];}
-      return n>0?2*c/n:0;
-    };
-    const y1=f(bestL-1),y2=bestV,y3=f(bestL+1);
-    const d=2*(y1+y3-2*y2);
-    if(d!==0) bestL-=(y3-y1)/d;
+  // グローバル最大値
+  let globalMax=-Infinity;
+  for(let lag=minL;lag<=maxL;lag++){
+    if(nsdf[lag]>globalMax) globalMax=nsdf[lag];
   }
-  return sr/bestL;
+  if(globalMax<0.45) return -1;
+
+  // 最初の局所ピーク（閾値以上）を選ぶ
+  // → 最短ラグ = 最高周波数 = 基音を優先（倍音ラグより先に見つかる）
+  const threshold=0.93*globalMax;
+  let bestL=-1,bestV=-Infinity;
+  for(let lag=minL;lag<=maxL;lag++){
+    if(nsdf[lag]>=threshold &&
+       nsdf[lag]>=nsdf[lag-1] &&
+       nsdf[lag]>=nsdf[lag+1]){
+      bestL=lag; bestV=nsdf[lag]; break;
+    }
+  }
+  if(bestL<1) return -1;
+
+  // 放物線補間（サブサンプル精度）
+  const y1=nsdf[bestL-1],y2=bestV,y3=nsdf[bestL+1];
+  const d=2*(y1+y3-2*y2);
+  let refL=bestL;
+  if(d!==0) refL-=(y3-y1)/d;
+  return sr/refL;
 }
 
 function freqToInfo(freq){
@@ -1010,18 +990,21 @@ function loop(){
     const sorted=[...freqBuf].sort((a,b)=>a-b);
     const med=sorted[Math.floor(sorted.length/2)];
 
-    // ── 倍音フィルター ──
-    // 現在ロック中の音の倍音比率と判定される場合は無視。
-    // ただし HARM_CONFIRM フレーム以上継続したら本当の音域変化として受け入れる。
+    // ── 安定化フィルター ──
+    // 前回から 80 セント以上離れていたら HARM_CONFIRM フレーム確認後に更新
+    // 確認中は displayFreq を保持 → グラフのスパイクを防止
     let displayFreq;
-    if(lockedFreq&&isHarmonic(med,lockedFreq)){
-      harmCount++;
-      displayFreq=(harmCount>=HARM_CONFIRM)?med:lockedFreq;
-      if(harmCount>=HARM_CONFIRM){lockedFreq=med;harmCount=0;}
+    if(lockedFreq){
+      const diff=centsDiff(med,lockedFreq);
+      if(diff<80){
+        lockedFreq=med;harmCount=0;displayFreq=med;
+      } else {
+        harmCount++;
+        displayFreq=lockedFreq;  // 確認完了まで前の音を表示
+        if(harmCount>=HARM_CONFIRM){lockedFreq=med;harmCount=0;}
+      }
     } else {
-      harmCount=0;
-      lockedFreq=med;
-      displayFreq=med;
+      lockedFreq=med;harmCount=0;displayFreq=med;
     }
 
     const info=freqToInfo(displayFreq);
@@ -1167,7 +1150,6 @@ function stopTuner(){
 function adjA4(d){
   a4=Math.max(430,Math.min(450,a4+d));
   document.getElementById('a4n1').textContent=a4;
-  document.getElementById('a4n2').textContent=a4;
 }
 function setTrans(btn){
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
@@ -1189,7 +1171,7 @@ function setView(btn){
 const SPEED_CFG=[
   {label:'最遅',bufMax:10,thresh:140},
   {label:'遅い',bufMax:7, thresh:110},
-  {label:'標準',bufMax:4, thresh:80},
+  {label:'標準',bufMax:6, thresh:80},
   {label:'速い',bufMax:2, thresh:50},
   {label:'最速',bufMax:1, thresh:30},
 ];
@@ -1202,62 +1184,13 @@ function setSpeed(v){
 // ══════════════════════════════════════
 //  TONE GENERATOR
 // ══════════════════════════════════════
-function buildPiano(){
-  const p=document.getElementById('piano');p.innerHTML='';
-  const wI=[0,2,4,5,7,9,11],bI=[1,3,null,6,8,10,null];
-  const wPct=100/7;
-  wI.forEach(ni=>{
-    const b=document.createElement('button');
-    b.className='wk';b.dataset.ni=ni;
-    const l=document.createElement('span');
-    l.className='klbl';l.textContent=NLABELS[ni];
-    b.appendChild(l);
-    b.addEventListener('pointerdown',e=>{e.preventDefault();startKey(ni,b)});
-    b.addEventListener('pointerup',  e=>{e.preventDefault();stopKey()});
-    b.addEventListener('pointerleave',()=>stopKey());
-    p.appendChild(b);
-  });
-  // 黒鍵left = (白鍵境界 - 黒鍵幅0.6の半分) = 境界 - 0.30 白鍵分
-  // 境界は白鍵1,2,4,5,6番目の右端 → offset = [0.70, 1.70, null, 3.70, 4.70, 5.70, null]
-  const bOff=[0.70,1.70,null,3.70,4.70,5.70,null];
-  bOff.forEach((off,wi)=>{
-    if(off===null)return;
-    const ni=bI[wi];if(ni===null)return;
-    const b=document.createElement('button');
-    b.className='bk';b.dataset.ni=ni;
-    b.style.left=(off*wPct)+'%';
-    b.addEventListener('pointerdown',e=>{e.preventDefault();startKey(ni,b)});
-    b.addEventListener('pointerup',  e=>{e.preventDefault();stopKey()});
-    b.addEventListener('pointerleave',()=>stopKey());
-    p.appendChild(b);
-  });
-}
-function buildOctRow(){
-  const r=document.getElementById('octRow');r.innerHTML='';
-  const octDefs=[
-    {o:3,label:'-1 oct'},
-    {o:4,label:'0'},
-    {o:5,label:'+1 oct'},
-  ];
-  octDefs.forEach(({o,label})=>{
-    const b=document.createElement('button');
-    b.className='oct-btn'+(o===selOct?' on':'');
-    b.textContent=label;
-    b.addEventListener('click',()=>{
-      selOct=o;
-      document.querySelectorAll('.oct-btn').forEach(x=>x.classList.remove('on'));
-      b.classList.add('on');
-    });
-    r.appendChild(b);
-  });
-}
 async function ensureCtx(){
   if(!toneCtx||toneCtx.state==='closed')
     toneCtx=new(window.AudioContext||window.webkitAudioContext)();
   if(toneCtx.state==='suspended') await toneCtx.resume();
 }
-async function startKey(ni,el){
-  stopKey();await ensureCtx();
+async function startToneNote(ni, btn){
+  await ensureCtx();
   const midi=(selOct+1)*12+ni;
   const freq=a4*Math.pow(2,(midi-69)/12);
   const vol=parseInt(document.getElementById('volSl').value)/100*0.72;
@@ -1268,9 +1201,14 @@ async function startKey(ni,el){
   toneGain.gain.linearRampToValueAtTime(vol,toneCtx.currentTime+0.04);
   toneOsc.connect(toneGain);toneGain.connect(toneCtx.destination);
   toneOsc.start();
-  el.classList.add('pl');activeKey=el;
+  btn.classList.add('pl');activeKey=btn;
   document.getElementById('toneNote').textContent=
-    NOTES_SHARP[ni]+selOct+'  ('+freq.toFixed(1)+' Hz)';
+    NOTES_SHARP[ni]+selOct+'  '+freq.toFixed(1)+' Hz';
+}
+// タップで再生トグル（同じ音=停止、別の音=切替）
+function tapToneNote(ni, btn){
+  if(activeKey===btn){ stopKey(); }
+  else { stopKey(); startToneNote(ni,btn); }
 }
 function stopKey(){
   if(toneOsc&&toneCtx){
@@ -1281,9 +1219,15 @@ function stopKey(){
   if(activeKey){activeKey.classList.remove('pl');activeKey=null;}
   document.getElementById('toneNote').textContent='';
 }
-function setWave(t,btn){
+function setToneOct(o, btn){
+  selOct=o;
+  document.querySelectorAll('.tone-oct').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  stopKey();  // オクターブ変更時は一旦停止
+}
+function setWave(t, btn){
   waveType=t;
-  document.querySelectorAll('.wave-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.tone-wave').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
 }
 
@@ -1300,11 +1244,17 @@ const metro = {
 };
 let metroAccent = true;
 let bpmStep = 5;
+let metroVol = { master:0.72, accent:1.0, beat:0.75, subdiv:0.45 };
+const SOUND_GAIN = { click:1.0, wood:1.0, hihat:0.85, beep:0.45, conga:1.0, chime:0.55 };
 
 function toggleAccent(btn){
   metroAccent = !metroAccent;
   btn.textContent = metroAccent ? 'ON' : 'OFF';
   btn.classList.toggle('on', metroAccent);
+}
+function setMetroVol(input, key, valId){
+  metroVol[key]=parseFloat(input.value);
+  document.getElementById(valId).textContent=Math.round(parseFloat(input.value)*100)+'%';
 }
 function bpmMinus(){ adjustBpm(-bpmStep); }
 function bpmPlus(){  adjustBpm( bpmStep); }
@@ -1332,14 +1282,15 @@ function metroClick(time, isAccent, isBeat){
   // lvl: 2=アクセント, 1=拍頭, 0=裏拍(分割)
   const lvl = effectiveAccent ? 2 : (isBeat ? 1 : 0);
   const ctx=metro.ctx;
-  const vol=0.72;
+  // マスター×レベル×音色ゲイン で最終音量を決定
+  const lvlGain=[metroVol.subdiv,metroVol.beat,metroVol.accent][lvl];
+  const vol=metroVol.master*lvlGain*SOUND_GAIN[metro.sound];
   switch(metro.sound){
     case 'click':{
       const freqs=[660,900,1200];
       const o=ctx.createOscillator(),e=ctx.createGain();
       o.frequency.value=freqs[lvl];
-      const gv=lvl===0?vol*0.45:vol;
-      e.gain.setValueAtTime(gv,time);
+      e.gain.setValueAtTime(vol,time);
       e.gain.exponentialRampToValueAtTime(0.001,time+0.018);
       o.connect(e);e.connect(ctx.destination);
       o.start(time);o.stop(time+0.02);
@@ -1350,8 +1301,7 @@ function metroClick(time, isAccent, isBeat){
       const freqs=[400,620,900];
       const o=ctx.createOscillator(),e=ctx.createGain();
       o.frequency.value=freqs[lvl];
-      const gv=lvl===0?vol*0.45:vol;
-      e.gain.setValueAtTime(gv,time);
+      e.gain.setValueAtTime(vol,time);
       e.gain.exponentialRampToValueAtTime(0.001,time+0.06);
       o.connect(e);e.connect(ctx.destination);
       o.start(time);o.stop(time+0.07);
@@ -1359,7 +1309,6 @@ function metroClick(time, isAccent, isBeat){
     }
     case 'hihat':{
       // 4kHz以上のハイパスノイズ → ピッチ検出に完全非干渉
-      const gains=[vol*0.35,vol*0.6,vol];
       const sz=Math.round(ctx.sampleRate*0.04);
       const buf=ctx.createBuffer(1,sz,ctx.sampleRate);
       const d=buf.getChannelData(0);
@@ -1368,7 +1317,7 @@ function metroClick(time, isAccent, isBeat){
       const hp=ctx.createBiquadFilter();
       hp.type='highpass';hp.frequency.value=4000;
       const e=ctx.createGain();
-      e.gain.value=gains[lvl];
+      e.gain.value=vol;
       src.connect(hp);hp.connect(e);e.connect(ctx.destination);
       src.start(time);
       break;
@@ -1377,8 +1326,7 @@ function metroClick(time, isAccent, isBeat){
       const freqs=[800,1100,1600];
       const o=ctx.createOscillator(),e=ctx.createGain();
       o.frequency.value=freqs[lvl];
-      const gv=lvl===0?vol*0.3:vol*0.45;
-      e.gain.setValueAtTime(gv,time);
+      e.gain.setValueAtTime(vol,time);
       e.gain.exponentialRampToValueAtTime(0.001,time+0.09);
       o.connect(e);e.connect(ctx.destination);
       o.start(time);o.stop(time+0.1);
@@ -1395,7 +1343,7 @@ function metroClick(time, isAccent, isBeat){
       const lp=ctx.createBiquadFilter();
       lp.type='lowpass';lp.frequency.value=lpFreqs[lvl];
       const e=ctx.createGain();
-      e.gain.value=lvl===0?vol*0.45:vol;
+      e.gain.value=vol;
       src.connect(lp);lp.connect(e);e.connect(ctx.destination);
       src.start(time);
       break;
@@ -1406,8 +1354,7 @@ function metroClick(time, isAccent, isBeat){
       const o=ctx.createOscillator(),e=ctx.createGain();
       o.type='sine';
       o.frequency.value=freqs[lvl];
-      const gv=lvl===0?vol*0.3:vol*0.5;
-      e.gain.setValueAtTime(gv,time);
+      e.gain.setValueAtTime(vol,time);
       e.gain.exponentialRampToValueAtTime(0.001,time+0.35);
       o.connect(e);e.connect(ctx.destination);
       o.start(time);o.stop(time+0.4);
@@ -1538,8 +1485,6 @@ function setMetroSound(btn){
 // ══════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════
-buildPiano();
-buildOctRow();
 // ResizeObserverが最初の描画を行うので初回drawGraph()は不要
 </script>
 </body>
