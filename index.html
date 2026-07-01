@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>波形チューナー(プロトタイプ)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* iOS: ボタン・スライダーのタップ遅延・ズームを防止 */
+button,input[type=range]{touch-action:manipulation;}
+
+:root{
+  --bg:    #0d0d0f;
+  --bg2:   #141416;
+  --bg3:   #1c1c1e;
+  --bg4:   #2c2c2e;
+  --line:  #3a3a3c;
+  --txt1:  #ffffff;
+  --txt2:  #aeaeb2;
+  --txt3:  #636366;
+  --green: #32d74b;
+  --yel:   #ffd60a;
+  --red:   #ff453a;
+  --blue:  #0a84ff;
+}
+
+html,body{
+  height:100%;width:100%;
+  overflow:hidden;  /* 全体スクロール禁止。設定エリアだけ独立スクロール */
+}
+html{
+  /* iOS Safari: 旧バージョン向けフォールバック */
+  height:-webkit-fill-available;
+}
+body{
+  background:var(--bg);color:var(--txt1);
+  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  /* iOS Safari: ブラウザUIを除いた実際の表示領域に合わせる */
+  height:-webkit-fill-available;
+  overscroll-behavior:none;
+}
+@supports (height:100dvh){
+  /* iOS 15.4+ / 現代ブラウザ: Dynamic Viewport Height */
+  body{ height:100dvh; }
+}
+
+/* ── Header ── */
+.hdr{
+  width:100%;flex-shrink:0;
+  padding:11px 18px 9px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg3);border-bottom:1px solid var(--bg4);
+}
+.hdr-title{font-size:16px;font-weight:700}
+.hdr-sub{font-size:11px;color:var(--txt3)}
+
+/* ── Tabs ── */
+.tabs{
+  width:100%;flex-shrink:0;
+  display:flex;background:var(--bg2);
+  border-bottom:1px solid var(--line);
+}
+.tab{
+  flex:1;padding:9px 0;
+  background:transparent;border:none;
+  color:var(--txt3);font-size:14px;font-weight:500;cursor:pointer;
+  border-bottom:2px solid transparent;transition:color .2s,border-color .2s;
+}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ── Outer: fills remaining viewport height ── */
+.outer{
+  width:100%;max-width:960px;
+  flex:1;min-height:0;  /* ←重要: flexでつぶれないように */
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+
+/* ── Panel ── */
+.panel{display:none;flex:1;min-height:0;overflow:hidden}
+.panel.on{display:flex;flex-direction:column}
+
+/* ════════════════════════════════════
+   TUNER PANEL  –  CSS Grid レイアウト
+   ════════════════════════════════════
+   Portrait grid:
+     [t-top     ]  ← 音名・ボタン
+     [t-graph   ]  ← グラフ（stretch）
+     [t-settings]  ← 設定（スクロール）
+
+   Landscape grid:
+     [t-top     | t-graph  ]
+     [t-settings| t-graph  ]
+*/
+.tuner-layout{
+  display:grid;
+  grid-template-rows: auto minmax(80px, 1fr) auto;
+  grid-template-columns: 1fr 210px;
+  grid-template-areas:
+    "top       metro-top"
+    "graph     graph"
+    "settings  metro-btm";
+  flex:1;min-height:0;
+  padding:0 12px;
+  gap:0 10px;
+}
+
+/* ── 音名エリア ── */
+.t-top{
+  grid-area:top;
+  display:flex;flex-direction:column;align-items:center;
+  padding:10px 0 6px;flex-shrink:0;
+}
+.note-letter{
+  font-size:88px;font-weight:800;line-height:1;
+  letter-spacing:-4px;color:var(--green);transition:color .12s;
+}
+.note-letter sup{font-size:42px;letter-spacing:0;vertical-align:super;line-height:0}
+/* ♭ 小さく副表示 */
+.note-enharmonic{
+  font-size:14px;font-weight:500;color:var(--txt3);
+  margin-top:-2px;min-height:18px;text-align:center;letter-spacing:0;
+}
+.note-oct{font-size:16px;color:var(--txt3);margin-top:-2px}
+.cents-line{
+  margin-top:4px;font-size:20px;font-weight:300;
+  color:var(--txt2);min-height:26px;letter-spacing:.5px;
+}
+.hz-line{font-size:12px;color:var(--txt3);margin-top:1px;min-height:15px}
+
+
+.start-btn{
+  width:100%;max-width:420px;height:48px;
+  border-radius:12px;border:none;
+  background:var(--green);color:#000;
+  font-size:16px;font-weight:700;cursor:pointer;
+  margin-top:8px;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  transition:opacity .15s,transform .1s;
+}
+.start-btn:active{transform:scale(.98);opacity:.88}
+.start-btn.stop{background:var(--red);color:#fff}
+
+/* ── グラフエリア ── */
+.t-graph{
+  grid-area:graph;
+  min-height:0;          /* grid内でつぶれない */
+  padding:8px 0;
+  display:flex;
+}
+
+/* ★ グラフ枠: 親の高さいっぱいに広がる */
+.graph-wrap{
+  flex:1;
+  border-radius:12px;overflow:hidden;
+  background:#080809;
+  border:1.5px solid var(--line);
+  transition:border-color .3s, box-shadow .3s;
+  position:relative;
+}
+.graph-wrap.in-tune{
+  border-color:rgba(50,215,75,0.65);
+  box-shadow:0 0 18px rgba(50,215,75,0.35),0 0 40px rgba(50,215,75,0.12);
+}
+
+/* ★ canvasは親を100%埋める */
+#pitchCanvas{
+  display:block;
+  width:100%;
+  height:100%;
+}
+
+/* ── 最大化ボタン ── */
+.graph-maxbtn{
+  position:absolute;bottom:10px;right:10px;
+  width:34px;height:34px;
+  border-radius:9px;border:none;
+  background:rgba(255,255,255,0.10);
+  color:var(--txt2);font-size:19px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  z-index:10;transition:background .15s;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+}
+.graph-maxbtn:active{background:rgba(255,255,255,0.22)}
+
+/* ── 全画面モード: ヘッダー・タブを隠してアプリ全体を拡張 ── */
+body.pres-mode .hdr,
+body.pres-mode .tabs{ display:none; }
+body.pres-mode .outer{ max-width:100%; }
+/* 全画面時はmax-height制限を解除 */
+body.pres-mode .t-settings,
+body.pres-mode .t-metro-btm{ max-height:none; }
+/* 全画面時ボタンを目立たせる */
+body.pres-mode .graph-maxbtn{
+  background:rgba(30,30,32,0.72);
+  bottom:auto;top:10px;right:10px;
+}
+
+/* ── 設定エリア（スクロール可能） ── */
+.t-settings{
+  grid-area:settings;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  max-height:36vh;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── メトロノーム上部（BPM＋スライダー＋開始ボタン） ── */
+.t-metro-top{
+  grid-area:metro-top;
+  display:flex;flex-direction:column;
+  align-items:stretch;
+  padding:10px 0 6px;
+  min-height:0;
+}
+/* BPM 大きな数字 */
+.metro-bpm-big{font-size:52px;font-weight:800;line-height:1;}
+/* 刻みトグル＋±ボタン行 */
+.metro-step-row{ display:flex; align-items:center; gap:5px; }
+/* ── メトロノーム下部（チップ類） ── */
+.t-metro-btm{
+  grid-area:metro-btm;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  min-height:0;
+  /* portrait: グラフが潰れないようカード列の最大高さを制限 */
+  max-height:44vh;
+  padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  display:flex;flex-direction:column;
+}
+.t-metro-btm .card{ margin-top:7px; }
+.t-metro-btm .card:first-child{ margin-top:0; }
+.t-metro-btm .card:last-child{ margin-top:auto; }
+/* metro内のチップを詰める */
+.t-metro-btm .chip{ font-size:10px; padding:6px 1px; }
+/* 8分音符モード時に分割ボタンを無効化 */
+.t-metro-btm .chip:disabled{ opacity:0.28; cursor:not-allowed; }
+.metro-subdiv-section.disabled .card-lbl{ opacity:0.35; }
+.t-metro-btm .card-lbl{ font-size:9px; margin-bottom:5px; }
+/* 音色チップ用 2列グリッド */
+.metro-chip-2col{ display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.metro-chip-2col .chip{ padding:5px 1px; }
+/* 拍子チップ用 3列グリッド */
+.metro-ts-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
+/* 分割チップ用 4列グリッド */
+.metro-subdiv-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+
+/* Cards */
+.card{
+  background:var(--bg3);border-radius:12px;
+  padding:11px 13px;margin-top:9px;
+}
+.card-lbl{
+  font-size:10px;color:var(--txt3);
+  text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px;
+}
+
+/* Transposition */
+.trans-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+.tbtn{
+  padding:7px 3px;border-radius:9px;
+  border:1.5px solid var(--bg4);background:var(--bg4);
+  color:var(--txt2);font-size:11px;font-weight:500;
+  cursor:pointer;text-align:center;line-height:1.35;transition:all .15s;
+}
+.tbtn.on{background:#0a84ff18;border-color:var(--blue);color:var(--blue)}
+
+/* A4 */
+.a4-row{display:flex;align-items:center;justify-content:space-between}
+.a4-num{font-size:28px;font-weight:700}
+.a4-unit{font-size:11px;color:var(--txt3);margin-left:3px}
+.pm-btn{
+  width:36px;height:36px;border-radius:50%;
+  border:none;background:var(--bg4);color:var(--txt1);font-size:20px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .15s;
+}
+.pm-btn:active{background:var(--line)}
+
+/* Chips (CR range) */
+.chip-row{display:flex;gap:5px}
+.chip{
+  flex:1;padding:7px 2px;border-radius:9px;
+  border:1.5px solid var(--bg4);background:var(--bg4);
+  color:var(--txt2);font-size:12px;font-weight:500;
+  cursor:pointer;text-align:center;transition:all .15s;
+}
+.chip.on{background:#0a84ff18;border-color:var(--blue);color:var(--blue)}
+
+/* Speed slider */
+.spd-row{display:flex;align-items:center;gap:9px;margin-top:2px}
+.spd-lbl{font-size:11px;color:var(--txt3);white-space:nowrap}
+.spd-val{font-size:13px;font-weight:600;min-width:56px;text-align:center}
+input[type=range]{
+  flex:1;-webkit-appearance:none;appearance:none;
+  height:4px;border-radius:2px;background:var(--line);outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:20px;height:20px;border-radius:50%;
+  background:var(--blue);cursor:pointer;
+  box-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+
+/* ════════════════════
+   LANDSCAPE  (≥600px)
+   ════════════════════ */
+@media (orientation:landscape) and (min-width:600px){
+  .hdr{padding:7px 16px}
+  .hdr-title{font-size:15px}
+  .tab{padding:7px 0;font-size:13px}
+
+  .tuner-layout{
+    grid-template-rows: auto 1fr;
+    grid-template-columns: 190px 1fr 210px;
+    grid-template-areas:
+      "top      graph  metro-top"
+      "settings graph  metro-btm";
+    padding:8px 12px 12px;
+    gap:0 12px;
+  }
+
+  /* 左カラム: 音名 */
+  .t-top{
+    padding:4px 0 4px;
+    border-right:none;
+  }
+  .note-letter{font-size:68px;letter-spacing:-3px}
+  .note-letter sup{font-size:32px}
+  .note-enharmonic{font-size:12px;margin-top:-1px}
+  .note-oct{font-size:13px}
+  .cents-line{font-size:17px;margin-top:3px}
+  .hz-line{font-size:11px}
+  .start-btn{height:42px;font-size:14px;margin-top:6px}
+
+
+  /* 左カラム: 設定 */
+  .t-settings{
+    max-height:none;
+    overflow-y:auto;
+    padding-bottom:10px;
+  }
+
+  /* 右端カラム: メトロノーム（上下分割） */
+  .t-metro-top{ padding:4px 0; }
+  .t-metro-btm{ padding-bottom:4px; overflow-y:auto; max-height:none; }
+  .metro-bpm-big{font-size:38px;}
+
+  /* 中央カラム: グラフ (2行にスパン) */
+  .t-graph{
+    padding:0;
+  }
+
+  .card{margin-top:7px;padding:9px 12px}
+}
+
+/* ════════════════════
+   PORTRAIT 小画面 (iPhone等 ≤500px)
+   ════════════════════ */
+@media (max-width:500px) and (orientation:portrait){
+  .tuner-layout{
+    /* メトロ列を少し狭めてチューナー列を広げる */
+    grid-template-columns: 1fr 175px;
+  }
+  /* 音名を少し小さく */
+  .note-letter{font-size:72px;}
+  .cents-line{font-size:17px;min-height:22px;}
+  .hz-line{font-size:11px;min-height:14px;}
+  /* BPMを少し小さく */
+  .metro-bpm-big{font-size:44px;}
+  /* 設定エリアの上限を下げてグラフの高さを確保 */
+  .t-settings{max-height:30vh;}
+  .t-metro-btm{max-height:38vh;}
+}
+
+/* ════════════════════
+   LANDSCAPE 低い画面 (iPhone横向き等 高さ≤500px)
+   ════════════════════ */
+@media (orientation:landscape) and (max-height:500px){
+  .note-letter{font-size:50px;letter-spacing:-2px;}
+  .note-letter sup{font-size:24px;}
+  .note-enharmonic{font-size:11px;min-height:14px;}
+  .note-oct{font-size:12px;}
+  .cents-line{font-size:14px;margin-top:2px;min-height:18px;}
+  .hz-line{font-size:10px;min-height:12px;}
+  .start-btn{height:36px;font-size:13px;margin-top:4px;}
+  .metro-bpm-big{font-size:28px;}
+  .t-metro-top{padding:2px 0;}
+  /* カード・チップをより詰める */
+  .card{margin-top:5px;padding:7px 10px;}
+  .t-metro-btm .card{margin-top:4px;}
+  .t-metro-btm .chip{padding:4px 1px;}
+  .t-metro-btm .card-lbl{margin-bottom:3px;}
+  .metro-ts-grid{gap:3px;}
+  .metro-subdiv-grid{gap:3px;}
+  .metro-chip-2col{gap:3px;}
+}
+
+/* ════════════════════
+   TONE GENERATOR PANEL
+   ════════════════════ */
+.tone-panel{
+  flex:1;min-height:0;
+  display:flex;flex-direction:column;
+  padding:10px 12px 20px;
+  gap:9px;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.kbd-card{background:var(--bg3);border-radius:12px;padding:12px 11px;flex-shrink:0}
+.piano{position:relative;display:flex;height:90px;margin:7px 0}
+.wk{
+  flex:1;border-radius:0 0 5px 5px;
+  background:#e8e8e8;border:none;cursor:pointer;position:relative;
+  border-right:1px solid #aaa;
+  transition:background .08s;
+}
+.wk:last-child{border-right:none}
+.wk:active,.wk.pl{background:#9dd8ff}
+/* 黒鍵: 白鍵1本分の60%幅、隣接白鍵の境界に中心が来るよう配置 */
+.bk{
+  position:absolute;top:0;
+  width:calc(100% / 7 * 0.60);  /* 白鍵幅の60% */
+  height:62%;
+  border-radius:0 0 4px 4px;
+  background:#222;border:none;cursor:pointer;z-index:2;
+  box-shadow:2px 4px 6px rgba(0,0,0,.7);transition:background .08s;
+}
+.bk:active,.bk.pl{background:var(--blue)}
+.klbl{
+  position:absolute;bottom:4px;left:50%;
+  transform:translateX(-50%);
+  font-size:8px;color:#777;pointer-events:none;white-space:nowrap;
+}
+/* ── メトロノーム ── */
+.metro-light{
+  display:inline-block;width:12px;height:12px;border-radius:50%;
+  background:#2c2c2e;flex-shrink:0;
+  transition:background .05s, transform .05s;
+}
+.metro-bpm-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+
+.oct-row{display:flex;gap:6px;justify-content:center;margin-top:4px}
+.oct-btn{
+  padding:5px 13px;border-radius:18px;
+  border:1.5px solid var(--bg4);background:var(--bg4);
+  color:var(--txt3);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;
+}
+.oct-btn.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.tone-note{
+  text-align:center;font-size:15px;font-weight:600;
+  color:var(--blue);min-height:21px;margin-top:4px;
+}
+.vol-row{display:flex;align-items:center;gap:9px;margin-top:6px}
+.vol-row span{font-size:14px}
+.wave-grid{display:flex;gap:5px}
+.wave-btn{
+  flex:1;padding:7px 2px;border-radius:9px;
+  border:1.5px solid var(--bg4);background:var(--bg4);
+  color:var(--txt2);font-size:11px;font-weight:500;
+  cursor:pointer;text-align:center;line-height:1.35;transition:all .15s;
+}
+.wave-btn.on{background:#0a84ff18;border-color:var(--blue);color:var(--blue)}
+
+@media (orientation:landscape) and (min-width:600px){
+  .tone-panel{flex-direction:row;flex-wrap:wrap;padding:8px 12px 14px}
+  .kbd-card{flex:1;min-width:260px}
+  .tone-panel > .card{flex:0 0 calc(50% - 9px)}
+}
+@media (max-width:360px){
+  .note-letter{font-size:72px}
+  .piano{height:70px}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-title">🎵 波形チューナー</div>
+  <div class="hdr-sub">プロトタイプ版</div>
+</div>
+
+<div class="tabs">
+  <button class="tab on" onclick="showPanel('tuner',this)">チューナー</button>
+  <button class="tab"    onclick="showPanel('tone',this)">トーン生成</button>
+</div>
+
+<div class="outer">
+
+  <!-- ═══ TUNER PANEL ═══ -->
+  <div class="panel on" id="panel-tuner">
+    <div class="tuner-layout">
+
+      <!-- TOP: 音名 + 開始ボタン -->
+      <div class="t-top">
+        <div class="note-letter"     id="noteLetter">－</div>
+        <div class="note-enharmonic" id="noteEnharmonic"></div>
+
+        <div class="note-oct"        id="noteOct"></div>
+        <div class="cents-line"      id="centsLine"></div>
+        <div class="hz-line"         id="hzLine"></div>
+        <button class="start-btn" id="startBtn" onclick="toggleTuner()">
+          <span id="sIco">🎤</span><span id="sTxt">チューニング開始</span>
+        </button>
+      </div>
+
+      <!-- GRAPH: 残り高さをすべて使用 -->
+      <div class="t-graph">
+        <div class="graph-wrap" id="graphWrap">
+          <canvas id="pitchCanvas"></canvas>
+          <!-- 最大化ボタン -->
+          <button class="graph-maxbtn" id="maxBtn" onclick="toggleMax()" title="全画面">⛶</button>
+        </div>
+      </div>
+
+      <!-- SETTINGS: 下部スクロールエリア -->
+      <div class="t-settings">
+
+        <div class="card">
+          <div class="card-lbl">移調楽器モード</div>
+          <div class="trans-grid">
+            <button class="tbtn on" data-t="0"  onclick="setTrans(this)">C管<br><small>実音</small></button>
+            <button class="tbtn"    data-t="2"  onclick="setTrans(this)">B♭管<br><small>Cl・Tp・Sax(T)</small></button>
+            <button class="tbtn"    data-t="9"  onclick="setTrans(this)">E♭管<br><small>Sax(A/B)</small></button>
+            <button class="tbtn"    data-t="7"  onclick="setTrans(this)">F管<br><small>ホルン</small></button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-lbl">波形の縦幅（表示セント幅）</div>
+          <div class="chip-row">
+            <button class="chip"    data-cr="10" onclick="setCR(this)">±10</button>
+            <button class="chip"    data-cr="20" onclick="setCR(this)">±20</button>
+            <button class="chip"    data-cr="30" onclick="setCR(this)">±30</button>
+            <button class="chip on" data-cr="50" onclick="setCR(this)">±50</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-lbl">波形の横幅（時間スケール）</div>
+          <div class="chip-row">
+            <button class="chip"    data-view="60"   onclick="setView(this)">短め<br><small>〜1秒</small></button>
+            <button class="chip on" data-view="300"  onclick="setView(this)">標準<br><small>〜5秒</small></button>
+            <button class="chip"    data-view="600"  onclick="setView(this)">広め<br><small>〜10秒</small></button>
+            <button class="chip"    data-view="1200" onclick="setView(this)">最広<br><small>〜20秒</small></button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-lbl">検知スピード（応答の速さ）</div>
+          <div class="spd-row">
+            <span class="spd-lbl">遅</span>
+            <input type="range" id="speedSl" min="1" max="5" value="3"
+                   oninput="setSpeed(this.value)">
+            <span class="spd-lbl">速</span>
+          </div>
+          <div style="text-align:center;margin-top:5px">
+            <span class="spd-val" id="speedLabel">標準</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-lbl">A4 基準音</div>
+          <div class="a4-row">
+            <button class="pm-btn" onclick="adjA4(-1)">−</button>
+            <div><span class="a4-num" id="a4n1">442</span><span class="a4-unit">Hz</span></div>
+            <button class="pm-btn" onclick="adjA4(+1)">+</button>
+          </div>
+        </div>
+
+
+      </div><!-- /t-settings -->
+
+      <!-- ── メトロノーム上部（BPM＋スライダー＋開始ボタン） ── -->
+      <div class="t-metro-top">
+        <!-- BPM 表示＋スライダー（ライト付き） -->
+        <div style="text-align:center;padding:6px 0 2px">
+          <span class="metro-bpm-big" id="metroBpmNum">120</span>
+          <span class="a4-unit">BPM</span>
+          <span id="metroLight" class="metro-light" style="margin-left:7px;vertical-align:middle"></span>
+        </div>
+        <div class="spd-row" style="margin-top:10px">
+          <span class="spd-lbl">20</span>
+          <input type="range" id="bpmSlider" min="20" max="300" value="120"
+                 oninput="setBpmSlider(this.value)">
+          <span class="spd-lbl">300</span>
+        </div>
+        <!-- 刻みトグル＋開始ボタン（margin-top:auto でチューナーボタンと下端揃え） -->
+        <div style="margin-top:auto">
+          <div class="metro-step-row" style="margin-top:8px">
+            <button class="pm-btn" onclick="bpmMinus()">−</button>
+            <button class="chip" id="stepToggle" onclick="toggleBpmStep(this)"
+                    style="flex:1;font-size:11px;padding:6px 2px">刻み: ±5</button>
+            <button class="pm-btn" onclick="bpmPlus()">+</button>
+          </div>
+          <button class="start-btn" id="metroBtn" onclick="toggleMetro()"
+                  style="max-width:100%;height:48px;font-size:14px;margin-top:6px">
+            <span id="metroBtnTxt">🥁 開始</span>
+          </button>
+        </div>
+      </div><!-- /t-metro-top -->
+
+      <!-- ── メトロノーム下部（チップ類） ── -->
+      <div class="t-metro-btm">
+
+        <!-- 拍子: 3×5 グリッド（単純拍子＋8分音符系） -->
+        <div class="card">
+          <div class="card-lbl">拍子</div>
+          <div class="metro-ts-grid">
+            <!-- 単純拍子: 空のspanで8分音符系と縦幅を揃える -->
+            <button class="chip"    data-ts="2" onclick="setTimeSig(this)">2/4<span style="font-size:8px;display:block">&nbsp;</span></button>
+            <button class="chip"    data-ts="3" onclick="setTimeSig(this)">3/4<span style="font-size:8px;display:block">&nbsp;</span></button>
+            <button class="chip on" data-ts="4" onclick="setTimeSig(this)">4/4<span style="font-size:8px;display:block">&nbsp;</span></button>
+            <button class="chip"    data-ts="5" onclick="setTimeSig(this)">5/4<span style="font-size:8px;display:block">&nbsp;</span></button>
+            <button class="chip"    data-ts="6" onclick="setTimeSig(this)">6/4<span style="font-size:8px;display:block">&nbsp;</span></button>
+            <button class="chip"    data-ts="7" onclick="setTimeSig(this)">7/4<span style="font-size:8px;display:block">&nbsp;</span></button>
+            <!-- 8分音符系: グループ配列を渡す。分割UI無効・8分音符固定 -->
+            <button class="chip" data-cp="3/8"     onclick="setCompound(this,[3])">3/8<span style="font-size:8px;display:block">&nbsp;</span></button>
+            <button class="chip" data-cp="5/8-32"  onclick="setCompound(this,[3,2])">5/8<span style="font-size:8px;display:block">3+2</span></button>
+            <button class="chip" data-cp="5/8-23"  onclick="setCompound(this,[2,3])">5/8<span style="font-size:8px;display:block">2+3</span></button>
+            <button class="chip" data-cp="6/8"     onclick="setCompound(this,[3,3])">6/8<span style="font-size:8px;display:block">&nbsp;</span></button>
+            <button class="chip" data-cp="7/8-322" onclick="setCompound(this,[3,2,2])">7/8<span style="font-size:8px;display:block">3+2+2</span></button>
+            <button class="chip" data-cp="7/8-232" onclick="setCompound(this,[2,3,2])">7/8<span style="font-size:8px;display:block">2+3+2</span></button>
+            <button class="chip" data-cp="7/8-223" onclick="setCompound(this,[2,2,3])">7/8<span style="font-size:8px;display:block">2+2+3</span></button>
+            <button class="chip" data-cp="9/8"     onclick="setCompound(this,[3,3,3])">9/8<span style="font-size:8px;display:block">&nbsp;</span></button>
+            <button class="chip" data-cp="12/8"    onclick="setCompound(this,[3,3,3,3])">12/8<span style="font-size:8px;display:block">&nbsp;</span></button>
+          </div>
+        </div>
+
+        <!-- 分割: 4×2 グリッド（♩〜32分）8分音符系拍子選択時は無効 -->
+        <div class="card metro-subdiv-section">
+          <div class="card-lbl">分割（1拍の刻み）</div>
+          <div class="metro-subdiv-grid">
+            <button class="chip on" data-sd="1" onclick="setSubdiv(this)">♩</button>
+            <button class="chip"    data-sd="2" onclick="setSubdiv(this)">♪</button>
+            <button class="chip"    data-sd="3" onclick="setSubdiv(this)">3連</button>
+            <button class="chip"    data-sd="4" onclick="setSubdiv(this)">♬</button>
+            <button class="chip"    data-sd="5" onclick="setSubdiv(this)">5連</button>
+            <button class="chip"    data-sd="6" onclick="setSubdiv(this)">6連</button>
+            <button class="chip"    data-sd="7" onclick="setSubdiv(this)">7連</button>
+            <button class="chip"    data-sd="8" onclick="setSubdiv(this)">32分</button>
+          </div>
+        </div>
+
+        <!-- 小節頭アクセント -->
+        <div class="card" style="padding-top:5px;padding-bottom:5px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="card-lbl" style="margin-bottom:0;white-space:nowrap">小節頭アクセント</span>
+            <button class="chip on" id="accentBtn" onclick="toggleAccent(this)"
+                    style="padding:4px 8px;min-width:52px">ON</button>
+          </div>
+        </div>
+
+        <!-- クリック音色 -->
+        <div class="card">
+          <div class="card-lbl">クリック音色</div>
+          <div class="metro-chip-2col">
+            <button class="chip on" data-ms="click" onclick="setMetroSound(this)">クリック</button>
+            <button class="chip"    data-ms="wood"  onclick="setMetroSound(this)">ウッド</button>
+            <button class="chip"    data-ms="hihat" onclick="setMetroSound(this)">チッ</button>
+            <button class="chip"    data-ms="beep"  onclick="setMetroSound(this)">ビープ</button>
+            <button class="chip"    data-ms="conga" onclick="setMetroSound(this)">コンガ</button>
+            <button class="chip"    data-ms="chime" onclick="setMetroSound(this)">チャイム</button>
+          </div>
+        </div>
+
+      </div><!-- /t-metro-btm -->
+    </div><!-- /tuner-layout -->
+  </div><!-- /tuner panel -->
+
+  <!-- ═══ TONE PANEL ═══ -->
+  <div class="panel" id="panel-tone">
+    <div class="tone-panel">
+
+      <div class="kbd-card">
+        <div class="card-lbl">オクターブ</div>
+        <div class="oct-row" id="octRow"></div>
+        <div class="card-lbl" style="margin-top:10px">鍵盤（タップで音が出ます）</div>
+        <div class="piano" id="piano"></div>
+        <div class="tone-note" id="toneNote"></div>
+        <div class="vol-row">
+          <span>🔇</span>
+          <input type="range" id="volSl" min="0" max="100" value="65">
+          <span>🔊</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-lbl">波形タイプ</div>
+        <div class="wave-grid">
+          <button class="wave-btn on" onclick="setWave('sine',this)">サイン波<br><small>純音</small></button>
+          <button class="wave-btn"    onclick="setWave('triangle',this)">三角波<br><small>柔らか</small></button>
+          <button class="wave-btn"    onclick="setWave('square',this)">矩形波<br><small>強め</small></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-lbl">A4 基準音</div>
+        <div class="a4-row">
+          <button class="pm-btn" onclick="adjA4(-1)">−</button>
+          <div><span class="a4-num" id="a4n2">442</span><span class="a4-unit">Hz</span></div>
+          <button class="pm-btn" onclick="adjA4(+1)">+</button>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /tone panel -->
+
+</div><!-- /outer -->
+
+<script>
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+let a4 = 442, semis = 0;
+let isRunning = false;
+let audioCtx, analyser, micSrc, micStream, rafId;
+
+// 横軸スケール: 内部バッファは最大サイズ、VIEWで表示幅を切り替え
+const HIST_MAX = 1200;   // 内部バッファ（約20秒分 @60fps）
+let VIEW = 300;          // 現在表示するサンプル数（横軸縮尺）
+const history = new Array(HIST_MAX).fill(null);
+
+let noSigFrames = 0;
+let freqBuf     = [];
+let inTuneFlag  = false;
+
+let CR          = 50;
+let freqBufMax  = 4;
+let noSigThresh = 80;
+
+let toneCtx, toneOsc, toneGain, activeKey, waveType = 'sine', selOct = 4;
+
+// 音名配列（シャープ / フラット / ソルフェージュ）
+const NOTES_SHARP = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const NOTES_FLAT  = ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+const SOLFEGE     = ['ド','ド♯','レ','レ♯','ミ','ファ','ファ♯','ソ','ソ♯','ラ','ラ♯','シ'];
+const NLABELS     = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+// 周波数ロック（倍音フィルター用）
+let lockedFreq = null;
+let harmCount  = 0;
+const HARM_CONFIRM = 4; // 倍音が何フレーム連続したら本当の音域変化と認識するか (~66ms)
+
+// 倍音判定: freq が ref の 2x/3x/4x/0.5x/0.33x に近いか
+function isHarmonic(freq, ref){
+  if(!ref||ref<=0) return false;
+  const ratio=freq/ref;
+  for(const r of [2,3,4,0.5,0.333]){
+    if(Math.abs(ratio/r-1)<0.07) return true; // ±7%(≈±1.2半音)
+  }
+  return false;
+}
+
+// ══════════════════════════════════════
+//  PANEL / TAB
+// ══════════════════════════════════════
+function showPanel(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('panel-'+id).classList.add('on');
+  btn.classList.add('on');
+}
+
+// ══════════════════════════════════════
+//  CANVAS  –  動的リサイズ
+// ══════════════════════════════════════
+const cv  = document.getElementById('pitchCanvas');
+const g   = cv.getContext('2d');
+
+// CW / CH / MID は動的に更新される
+let CW  = 300;
+let CH  = 200;
+let MID = 100;
+
+function cy(cents){
+  // 上下に 5px の余白を残してフル活用
+  const PAD = 5;
+  return MID - (cents / CR) * (MID - PAD);
+}
+
+// ── キャンバスリサイズ共通処理 ──
+function onCanvasResize(width, height){
+  if(width < 1 || height < 1) return;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width  = Math.round(width  * dpr);
+  cv.height = Math.round(height * dpr);
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  CW  = Math.round(width);
+  CH  = Math.round(height);
+  MID = CH / 2;
+  drawGraph();
+}
+
+// ResizeObserver: canvas要素のサイズ変化を検知（ウィンドウリサイズ・全画面切替など）
+const resizeObserver = new ResizeObserver(entries => {
+  for(const e of entries){
+    const {width, height} = e.contentRect;
+    onCanvasResize(width, height);
+  }
+});
+resizeObserver.observe(cv);
+
+// window resize フォールバック（ResizeObserverが拾えないケースに対応）
+window.addEventListener('resize', () => {
+  const r = cv.getBoundingClientRect();
+  onCanvasResize(r.width, r.height);
+});
+
+// 初回レイアウト確定後にサイズを確実に取得（ダブルRAF）
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  const r = cv.getBoundingClientRect();
+  onCanvasResize(r.width, r.height);
+}));
+
+// ══════════════════════════════════════
+//  グラフ描画
+// ══════════════════════════════════════
+function lineColor(c){
+  const a=Math.abs(c);
+  return a<10?'#32d74b':a<25?'#ffd60a':'#ff453a';
+}
+
+function drawGraph(){
+  if(CW<1||CH<1) return;
+  g.clearRect(0,0,CW,CH);
+
+  // 背景
+  g.fillStyle = inTuneFlag ? '#091409' : '#080809';
+  g.fillRect(0,0,CW,CH);
+
+  // ±10 green band
+  const bTop = cy(Math.min(10,CR));
+  const bBot = cy(Math.max(-10,-CR));
+  const bOp  = inTuneFlag ? 0.22 : 0.13;
+  g.fillStyle = `rgba(50,215,75,${bOp})`;
+  g.fillRect(0, bTop, CW, bBot-bTop);
+
+  // ±10 境界線
+  if(CR>=10){
+    g.setLineDash([]);
+    g.lineWidth=1.2;
+    g.strokeStyle = inTuneFlag
+      ?'rgba(50,215,75,0.85)':'rgba(50,215,75,0.52)';
+    [10,-10].forEach(c=>{
+      g.beginPath();g.moveTo(0,cy(c));g.lineTo(CW,cy(c));g.stroke();
+    });
+  }
+
+  // ±25 破線
+  g.setLineDash([6,6]); g.lineWidth=1;
+  [25,-25].forEach(c=>{
+    if(Math.abs(c)>=CR) return;
+    g.strokeStyle='#272729';
+    g.beginPath();g.moveTo(0,cy(c));g.lineTo(CW,cy(c));g.stroke();
+  });
+  // ±CR 端線
+  [CR,-CR].forEach(c=>{
+    g.strokeStyle='#1e1e20';
+    g.beginPath();g.moveTo(0,cy(c));g.lineTo(CW,cy(c));g.stroke();
+  });
+  g.setLineDash([]);
+
+  // 中央ライン（0 cent）
+  g.strokeStyle='#4e4e50'; g.lineWidth=1.8;
+  g.beginPath();g.moveTo(0,MID);g.lineTo(CW,MID);g.stroke();
+
+  // Y軸ラベル
+  const fontSize = Math.max(10, Math.min(13, CH/18));
+  g.font=`${fontSize}px -apple-system,sans-serif`;
+  g.textAlign='left'; g.textBaseline='middle';
+  [CR,-CR].forEach(c=>{
+    g.fillStyle='#2a2a2c';
+    g.fillText((c>0?'+':'')+c, 4, cy(c));
+  });
+  [25,-25].forEach(c=>{
+    if(Math.abs(c)>=CR) return;
+    g.fillStyle='#2a2a2c';
+    g.fillText((c>0?'+':'')+c, 4, cy(c));
+  });
+  if(CR>10){
+    g.fillStyle=inTuneFlag?'rgba(50,215,75,0.9)':'rgba(50,215,75,0.62)';
+    [10,-10].forEach(c=>{
+      g.fillText((c>0?'+':'')+c, 4, cy(c));
+    });
+  }
+  g.fillStyle='#606062';
+  g.fillText('0', 4, cy(0));
+
+  // ── 折れ線 ──
+  const visible = history.slice(HIST_MAX - VIEW);  // 末尾VIEW個を表示
+  const pxPerSample = CW / VIEW;
+  let px=null, py=null, pc=null;
+
+  for(let i=0;i<VIEW;i++){
+    const val=visible[i];
+    const x=i*pxPerSample;
+    if(val===null){px=py=pc=null;continue;}
+
+    const clamped=Math.max(-CR,Math.min(CR,val));
+    const ycur=cy(clamped);
+
+    if(px!==null){
+      const grad=g.createLinearGradient(px,0,x,0);
+      grad.addColorStop(0,lineColor(pc));
+      grad.addColorStop(1,lineColor(val));
+      g.beginPath();g.moveTo(px,py);g.lineTo(x,ycur);
+      g.strokeStyle=grad;
+      g.lineWidth=2.4;
+      g.lineCap='round';g.lineJoin='round';
+      g.stroke();
+    }
+
+    if(i===VIEW-1){
+      const col=lineColor(val);
+      const dotR=Math.max(3.5, Math.min(6, CH/36));
+      g.beginPath();g.arc(x,ycur,dotR,0,Math.PI*2);
+      g.fillStyle=col;
+      g.shadowColor=col;g.shadowBlur=12;
+      g.fill();g.shadowBlur=0;
+    }
+
+    px=x;py=ycur;pc=val;
+  }
+
+  // 右端NOW
+  g.strokeStyle='#2a2a2c';g.lineWidth=1;
+  g.setLineDash([3,5]);
+  g.beginPath();g.moveTo(CW-1,0);g.lineTo(CW-1,CH);g.stroke();
+  g.setLineDash([]);
+}
+
+// ══════════════════════════════════════
+//  PITCH DETECTION
+// ══════════════════════════════════════
+function autoCorrelate(buf,sr){
+  const N=buf.length;
+  let rms=0;
+  for(let i=0;i<N;i++) rms+=buf[i]*buf[i];
+  rms=Math.sqrt(rms/N);
+  if(rms<0.009) return -1;
+
+  const minL=Math.floor(sr/2100);
+  const maxL=Math.ceil(sr/58);
+  let bestL=-1,bestV=-Infinity;
+
+  for(let lag=minL;lag<=Math.min(maxL,N/2);lag++){
+    let c=0,n=0;
+    const len=N-lag;
+    for(let i=0;i<len;i++){
+      c+=buf[i]*buf[i+lag];
+      n+=buf[i]*buf[i]+buf[i+lag]*buf[i+lag];
+    }
+    const v=n>0?2*c/n:0;
+    if(v>bestV){bestV=v;bestL=lag;}
+  }
+  if(bestV<0.45||bestL<1) return -1;
+
+  // ── 基音優先: 検出lagの整数倍(低オクターブ)も相関が高ければそちらを採用 ──
+  // 倍音(2f, 3f...)を検出してしまった場合、lag*2 や lag*3 に基音がある
+  const nsdfAt=lag=>{
+    if(lag<minL||lag>maxL||lag>=N/2) return -1;
+    let c=0,n=0;const len=N-lag;
+    for(let i=0;i<len;i++){c+=buf[i]*buf[i+lag];n+=buf[i]*buf[i]+buf[i+lag]*buf[i+lag];}
+    return n>0?2*c/n:0;
+  };
+  for(const mult of [2,3]){
+    const subL=Math.round(bestL*mult);
+    const subV=nsdfAt(subL);
+    if(subV>0.45&&subV>bestV*0.78){bestL=subL;bestV=subV;}
+  }
+
+  if(bestL>0&&bestL<N/2-1){
+    const f=lag=>{
+      let c=0,n=0;const len=N-lag;
+      for(let i=0;i<len;i++){c+=buf[i]*buf[i+lag];n+=buf[i]*buf[i]+buf[i+lag]*buf[i+lag];}
+      return n>0?2*c/n:0;
+    };
+    const y1=f(bestL-1),y2=bestV,y3=f(bestL+1);
+    const d=2*(y1+y3-2*y2);
+    if(d!==0) bestL-=(y3-y1)/d;
+  }
+  return sr/bestL;
+}
+
+function freqToInfo(freq){
+  const midi      =69+12*Math.log2(freq/a4);
+  const round     =Math.round(midi);
+  const cents     =(midi-round)*100;
+  const concertNi =((round%12)+12)%12;          // 実音インデックス
+  const ni        =((concertNi+semis)%12+12)%12; // 書き譜インデックス
+  const oct       =Math.floor(round/12)-1;
+  return {ni, concertNi, oct, cents, freq};
+}
+
+// ══════════════════════════════════════
+//  MAIN LOOP
+// ══════════════════════════════════════
+function loop(){
+  if(!isRunning) return;
+  const buf=new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+  const freq=autoCorrelate(buf,audioCtx.sampleRate);
+
+  if(freq>0){
+    noSigFrames=0;
+    freqBuf.push(freq);
+    if(freqBuf.length>freqBufMax) freqBuf.shift();
+    const sorted=[...freqBuf].sort((a,b)=>a-b);
+    const med=sorted[Math.floor(sorted.length/2)];
+
+    // ── 倍音フィルター ──
+    // 現在ロック中の音の倍音比率と判定される場合は無視。
+    // ただし HARM_CONFIRM フレーム以上継続したら本当の音域変化として受け入れる。
+    let displayFreq;
+    if(lockedFreq&&isHarmonic(med,lockedFreq)){
+      harmCount++;
+      displayFreq=(harmCount>=HARM_CONFIRM)?med:lockedFreq;
+      if(harmCount>=HARM_CONFIRM){lockedFreq=med;harmCount=0;}
+    } else {
+      harmCount=0;
+      lockedFreq=med;
+      displayFreq=med;
+    }
+
+    const info=freqToInfo(displayFreq);
+    updateNoteUI(info);
+    history.shift();
+    history.push(info.cents);
+  } else {
+    noSigFrames++;
+    freqBuf=[];
+    harmCount=0;
+    // 無音でも表示・ロックを保持（最後の音名・Hz・緑点灯をそのまま残す）
+    // history 変更なし → グラフ静止
+  }
+
+  drawGraph();
+  rafId=requestAnimationFrame(loop);
+}
+
+// ══════════════════════════════════════
+//  FULLSCREEN MAXIMIZE
+// ══════════════════════════════════════
+const graphWrap=document.getElementById('graphWrap');
+let isMax=false;
+
+function toggleMax(){
+  isMax=!isMax;
+  document.body.classList.toggle('pres-mode',isMax);
+  document.getElementById('maxBtn').textContent=isMax?'✕':'⛶';
+  // レイアウト確定後にキャンバスを再計算
+  requestAnimationFrame(() => {
+    const r = cv.getBoundingClientRect();
+    onCanvasResize(r.width, r.height);
+  });
+}
+
+// ESCキーで全画面解除
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&isMax)toggleMax();});
+
+// ══════════════════════════════════════
+//  NOTE UI + IN-TUNE
+// ══════════════════════════════════════
+
+function setInTune(on){
+  inTuneFlag=on;
+  graphWrap.classList.toggle('in-tune',on);
+}
+
+function updateNoteUI(info){
+  const sharp=NOTES_SHARP[info.ni];
+  const flat =NOTES_FLAT[info.ni];
+  const isAcc=sharp.includes('♯');
+
+  // ── 音名（書き譜・♯メイン＋♭小さく副表示）
+  const el=document.getElementById('noteLetter');
+  el.innerHTML=sharp;
+
+  const enhEl=document.getElementById('noteEnharmonic');
+  enhEl.textContent=isAcc?'= '+flat:'';
+
+  // ── 色（±10¢=緑, ±25¢=黄, それ以上=赤）
+  const a=Math.abs(info.cents);
+  const col=a<10?'var(--green)':a<25?'var(--yel)':'var(--red)';
+  el.style.color=col;
+
+  // ── オクターブ・セント
+  document.getElementById('noteOct').textContent=info.oct;
+  const cs=info.cents;
+  document.getElementById('centsLine').textContent=(cs>=0?'+':'')+cs.toFixed(1)+' cents';
+
+  // ── Hz + 実音（移調楽器選択時のみ実音を併記）
+  let hzText=info.freq.toFixed(1)+' Hz';
+  if(semis!==0){
+    const cSharp=NOTES_SHARP[info.concertNi];
+    const cFlat =NOTES_FLAT[info.concertNi];
+    const cDisp =cSharp.includes('♯')?cSharp+'/'+cFlat:cSharp;
+    hzText+='  実音: '+cDisp;
+  }
+  document.getElementById('hzLine').textContent=hzText;
+
+  setInTune(a<10);
+}
+
+function clearNoteUI(){
+  const el=document.getElementById('noteLetter');
+  el.textContent='－';el.style.color='var(--green)';
+  document.getElementById('noteEnharmonic').textContent='';
+
+  document.getElementById('noteOct').textContent='';
+  document.getElementById('centsLine').textContent='';
+  document.getElementById('hzLine').textContent='';
+  setInTune(false);
+  lockedFreq=null;harmCount=0;
+}
+
+// ══════════════════════════════════════
+//  START / STOP
+// ══════════════════════════════════════
+async function toggleTuner(){isRunning?stopTuner():await startTuner();}
+
+async function startTuner(){
+  try{
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const stream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1}
+    });
+    micStream=stream;
+    analyser=audioCtx.createAnalyser();
+    analyser.fftSize=2048;analyser.smoothingTimeConstant=0;
+    micSrc=audioCtx.createMediaStreamSource(stream);
+    micSrc.connect(analyser);
+    isRunning=true;noSigFrames=0;freqBuf=[];lockedFreq=null;harmCount=0;
+    history.fill(null);
+    const b=document.getElementById('startBtn');
+    b.classList.add('stop');
+    document.getElementById('sIco').textContent='⏹';
+    document.getElementById('sTxt').textContent='停止';
+    loop();
+  }catch(e){
+    alert('マイクへのアクセスが必要です。\nブラウザのアドレスバーからマイクの使用を許可してください。');
+  }
+}
+
+function stopTuner(){
+  isRunning=false;
+  if(isMax) toggleMax();  // 停止時は全画面モードを解除
+  if(rafId) cancelAnimationFrame(rafId);
+  if(micSrc) micSrc.disconnect();
+  if(micStream) micStream.getTracks().forEach(t=>t.stop());
+  if(audioCtx) audioCtx.close();
+  audioCtx=analyser=micSrc=micStream=null;
+  history.fill(null);
+  setInTune(false);
+  drawGraph();clearNoteUI();
+  const b=document.getElementById('startBtn');
+  b.classList.remove('stop');
+  document.getElementById('sIco').textContent='🎤';
+  document.getElementById('sTxt').textContent='チューニング開始';
+}
+
+// ══════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════
+function adjA4(d){
+  a4=Math.max(430,Math.min(450,a4+d));
+  document.getElementById('a4n1').textContent=a4;
+  document.getElementById('a4n2').textContent=a4;
+}
+function setTrans(btn){
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  semis=parseInt(btn.dataset.t,10);
+}
+function setCR(btn){
+  document.querySelectorAll('[data-cr]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  CR=parseInt(btn.dataset.cr,10);
+  drawGraph();
+}
+function setView(btn){
+  document.querySelectorAll('[data-view]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  VIEW=parseInt(btn.dataset.view,10);
+  drawGraph();
+}
+const SPEED_CFG=[
+  {label:'最遅',bufMax:10,thresh:140},
+  {label:'遅い',bufMax:7, thresh:110},
+  {label:'標準',bufMax:4, thresh:80},
+  {label:'速い',bufMax:2, thresh:50},
+  {label:'最速',bufMax:1, thresh:30},
+];
+function setSpeed(v){
+  const c=SPEED_CFG[parseInt(v)-1];
+  freqBufMax=c.bufMax;noSigThresh=c.thresh;
+  document.getElementById('speedLabel').textContent=c.label;
+}
+
+// ══════════════════════════════════════
+//  TONE GENERATOR
+// ══════════════════════════════════════
+function buildPiano(){
+  const p=document.getElementById('piano');p.innerHTML='';
+  const wI=[0,2,4,5,7,9,11],bI=[1,3,null,6,8,10,null];
+  const wPct=100/7;
+  wI.forEach(ni=>{
+    const b=document.createElement('button');
+    b.className='wk';b.dataset.ni=ni;
+    const l=document.createElement('span');
+    l.className='klbl';l.textContent=NLABELS[ni];
+    b.appendChild(l);
+    b.addEventListener('pointerdown',e=>{e.preventDefault();startKey(ni,b)});
+    b.addEventListener('pointerup',  e=>{e.preventDefault();stopKey()});
+    b.addEventListener('pointerleave',()=>stopKey());
+    p.appendChild(b);
+  });
+  // 黒鍵left = (白鍵境界 - 黒鍵幅0.6の半分) = 境界 - 0.30 白鍵分
+  // 境界は白鍵1,2,4,5,6番目の右端 → offset = [0.70, 1.70, null, 3.70, 4.70, 5.70, null]
+  const bOff=[0.70,1.70,null,3.70,4.70,5.70,null];
+  bOff.forEach((off,wi)=>{
+    if(off===null)return;
+    const ni=bI[wi];if(ni===null)return;
+    const b=document.createElement('button');
+    b.className='bk';b.dataset.ni=ni;
+    b.style.left=(off*wPct)+'%';
+    b.addEventListener('pointerdown',e=>{e.preventDefault();startKey(ni,b)});
+    b.addEventListener('pointerup',  e=>{e.preventDefault();stopKey()});
+    b.addEventListener('pointerleave',()=>stopKey());
+    p.appendChild(b);
+  });
+}
+function buildOctRow(){
+  const r=document.getElementById('octRow');r.innerHTML='';
+  const octDefs=[
+    {o:3,label:'-1 oct'},
+    {o:4,label:'0'},
+    {o:5,label:'+1 oct'},
+  ];
+  octDefs.forEach(({o,label})=>{
+    const b=document.createElement('button');
+    b.className='oct-btn'+(o===selOct?' on':'');
+    b.textContent=label;
+    b.addEventListener('click',()=>{
+      selOct=o;
+      document.querySelectorAll('.oct-btn').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+    });
+    r.appendChild(b);
+  });
+}
+async function ensureCtx(){
+  if(!toneCtx||toneCtx.state==='closed')
+    toneCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(toneCtx.state==='suspended') await toneCtx.resume();
+}
+async function startKey(ni,el){
+  stopKey();await ensureCtx();
+  const midi=(selOct+1)*12+ni;
+  const freq=a4*Math.pow(2,(midi-69)/12);
+  const vol=parseInt(document.getElementById('volSl').value)/100*0.72;
+  toneOsc=toneCtx.createOscillator();
+  toneGain=toneCtx.createGain();
+  toneOsc.type=waveType;toneOsc.frequency.value=freq;
+  toneGain.gain.setValueAtTime(0,toneCtx.currentTime);
+  toneGain.gain.linearRampToValueAtTime(vol,toneCtx.currentTime+0.04);
+  toneOsc.connect(toneGain);toneGain.connect(toneCtx.destination);
+  toneOsc.start();
+  el.classList.add('pl');activeKey=el;
+  document.getElementById('toneNote').textContent=
+    NOTES_SHARP[ni]+selOct+'  ('+freq.toFixed(1)+' Hz)';
+}
+function stopKey(){
+  if(toneOsc&&toneCtx){
+    toneGain.gain.linearRampToValueAtTime(0,toneCtx.currentTime+0.06);
+    toneOsc.stop(toneCtx.currentTime+0.07);
+    toneOsc=toneGain=null;
+  }
+  if(activeKey){activeKey.classList.remove('pl');activeKey=null;}
+  document.getElementById('toneNote').textContent='';
+}
+function setWave(t,btn){
+  waveType=t;
+  document.querySelectorAll('.wave-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+// ══════════════════════════════════════
+//  METRONOME
+// ══════════════════════════════════════
+const metro = {
+  bpm:120, timeSig:4, subdiv:1, sound:'click',
+  running:false, ctx:null,
+  nextTime:0, clickNum:0, timerId:null,
+  // 8分音符系拍子モード
+  isEighthBase:false,
+  groups:[],   // グループ配列。例: 7/8(2+3+2)=[2,3,2]
+};
+let metroAccent = true;
+let bpmStep = 5;
+
+function toggleAccent(btn){
+  metroAccent = !metroAccent;
+  btn.textContent = metroAccent ? 'ON' : 'OFF';
+  btn.classList.toggle('on', metroAccent);
+}
+function bpmMinus(){ adjustBpm(-bpmStep); }
+function bpmPlus(){  adjustBpm( bpmStep); }
+function toggleBpmStep(btn){
+  bpmStep = bpmStep === 5 ? 1 : 5;
+  btn.textContent = '刻み: ±' + bpmStep;
+  btn.classList.toggle('on', bpmStep === 1);
+}
+
+function ensureMetroCtx(){
+  if(!metro.ctx||metro.ctx.state==='closed')
+    metro.ctx=new(window.AudioContext||window.webkitAudioContext)();
+  if(metro.ctx.state==='suspended') metro.ctx.resume();
+  return metro.ctx;
+}
+
+/* 音色ごとのクリック生成 ─── チューナーへの干渉を最小化
+   ・click/wood/beep : 短い発音 → NSFDの RMS閾値を短時間で下回る
+   ・hihat           : 4kHz以上のハイパスノイズ → ピッチ検出上限(2100Hz)超え
+   ・conga           : 低域ノイズ → NSDF相関が低くピッチ検出されにくい
+   ・chime           : 2200Hz以上の純音 → ピッチ検出上限(2100Hz)超え・非干渉
+   3段階レベル: lvl=2=アクセント(小節頭) / 1=拍頭 / 0=分割(裏拍)            */
+function metroClick(time, isAccent, isBeat){
+  const effectiveAccent = isAccent && metroAccent;
+  // lvl: 2=アクセント, 1=拍頭, 0=裏拍(分割)
+  const lvl = effectiveAccent ? 2 : (isBeat ? 1 : 0);
+  const ctx=metro.ctx;
+  const vol=0.72;
+  switch(metro.sound){
+    case 'click':{
+      const freqs=[660,900,1200];
+      const o=ctx.createOscillator(),e=ctx.createGain();
+      o.frequency.value=freqs[lvl];
+      const gv=lvl===0?vol*0.45:vol;
+      e.gain.setValueAtTime(gv,time);
+      e.gain.exponentialRampToValueAtTime(0.001,time+0.018);
+      o.connect(e);e.connect(ctx.destination);
+      o.start(time);o.stop(time+0.02);
+      break;
+    }
+    case 'wood':{
+      // 減衰する正弦波でウッドブロック的な音
+      const freqs=[400,620,900];
+      const o=ctx.createOscillator(),e=ctx.createGain();
+      o.frequency.value=freqs[lvl];
+      const gv=lvl===0?vol*0.45:vol;
+      e.gain.setValueAtTime(gv,time);
+      e.gain.exponentialRampToValueAtTime(0.001,time+0.06);
+      o.connect(e);e.connect(ctx.destination);
+      o.start(time);o.stop(time+0.07);
+      break;
+    }
+    case 'hihat':{
+      // 4kHz以上のハイパスノイズ → ピッチ検出に完全非干渉
+      const gains=[vol*0.35,vol*0.6,vol];
+      const sz=Math.round(ctx.sampleRate*0.04);
+      const buf=ctx.createBuffer(1,sz,ctx.sampleRate);
+      const d=buf.getChannelData(0);
+      for(let i=0;i<sz;i++) d[i]=(Math.random()*2-1)*(1-i/sz);
+      const src=ctx.createBufferSource(); src.buffer=buf;
+      const hp=ctx.createBiquadFilter();
+      hp.type='highpass';hp.frequency.value=4000;
+      const e=ctx.createGain();
+      e.gain.value=gains[lvl];
+      src.connect(hp);hp.connect(e);e.connect(ctx.destination);
+      src.start(time);
+      break;
+    }
+    case 'beep':{
+      const freqs=[800,1100,1600];
+      const o=ctx.createOscillator(),e=ctx.createGain();
+      o.frequency.value=freqs[lvl];
+      const gv=lvl===0?vol*0.3:vol*0.45;
+      e.gain.setValueAtTime(gv,time);
+      e.gain.exponentialRampToValueAtTime(0.001,time+0.09);
+      o.connect(e);e.connect(ctx.destination);
+      o.start(time);o.stop(time+0.1);
+      break;
+    }
+    case 'conga':{
+      // 低域ノイズ → NSDF相関が低くピッチ検出されにくい
+      const lpFreqs=[200,350,500];
+      const sz=Math.round(ctx.sampleRate*0.12);
+      const buf=ctx.createBuffer(1,sz,ctx.sampleRate);
+      const d=buf.getChannelData(0);
+      for(let i=0;i<sz;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(sz*0.3));
+      const src=ctx.createBufferSource(); src.buffer=buf;
+      const lp=ctx.createBiquadFilter();
+      lp.type='lowpass';lp.frequency.value=lpFreqs[lvl];
+      const e=ctx.createGain();
+      e.gain.value=lvl===0?vol*0.45:vol;
+      src.connect(lp);lp.connect(e);e.connect(ctx.destination);
+      src.start(time);
+      break;
+    }
+    case 'chime':{
+      // 2200Hz以上 → ピッチ検出上限(2100Hz)を超えるので非干渉
+      const freqs=[2200,2637,3136];
+      const o=ctx.createOscillator(),e=ctx.createGain();
+      o.type='sine';
+      o.frequency.value=freqs[lvl];
+      const gv=lvl===0?vol*0.3:vol*0.5;
+      e.gain.setValueAtTime(gv,time);
+      e.gain.exponentialRampToValueAtTime(0.001,time+0.35);
+      o.connect(e);e.connect(ctx.destination);
+      o.start(time);o.stop(time+0.4);
+      break;
+    }
+  }
+  // ビジュアルフラッシュ: 赤=アクセント / 緑=拍頭 / 青=裏拍(分割)
+  const flashColors=['var(--blue)','var(--green)','var(--red)'];
+  const delay=Math.max(0,(time-ctx.currentTime)*1000);
+  setTimeout(()=>{
+    const el=document.getElementById('metroLight');
+    if(!el) return;
+    el.style.background=flashColors[lvl];
+    el.style.transform='scale(1.5)';
+    setTimeout(()=>{el.style.background='#2c2c2e';el.style.transform='scale(1)';},90);
+  }, delay);
+}
+
+function metroScheduler(){
+  if(!metro.running) return;
+  const AHEAD=0.14; // 140ms 先読み
+
+  if(metro.isEighthBase){
+    // ── 8分音符系: BPMは4分音符基準 → 8分音符 = 30/bpm 秒
+    const clickDur = 30/metro.bpm;
+    const total = metro.groups.reduce((a,b)=>a+b, 0);
+    // グループ先頭位置を事前計算
+    const beatPositions = new Set();
+    let cum=0;
+    for(const g of metro.groups){ beatPositions.add(cum); cum+=g; }
+
+    while(metro.nextTime < metro.ctx.currentTime+AHEAD){
+      const pos = metro.clickNum % total;
+      const isMeasureHead = pos===0;
+      const isBeatPos = beatPositions.has(pos);
+      // isAccent: 小節頭 かつ アクセントON
+      // isBeat: グループ先頭（小節頭を含む）
+      const isAccent = isMeasureHead && metroAccent;
+      const isBeat   = isBeatPos;
+      metroClick(metro.nextTime, isAccent, isBeat);
+      metro.nextTime+=clickDur;
+      metro.clickNum=(metro.clickNum+1)%total;
+    }
+  } else {
+    // ── 通常モード: timeSig × subdiv
+    const total=metro.timeSig*metro.subdiv;
+    const clickDur=(60/metro.bpm)/metro.subdiv;
+    while(metro.nextTime < metro.ctx.currentTime+AHEAD){
+      const isAccent=(metro.clickNum%total)===0;
+      const isBeat  =(metro.clickNum%metro.subdiv)===0;
+      metroClick(metro.nextTime, isAccent, isBeat);
+      metro.nextTime+=clickDur;
+      metro.clickNum=(metro.clickNum+1)%total;
+    }
+  }
+  metro.timerId=setTimeout(metroScheduler,25);
+}
+
+async function toggleMetro(){
+  if(metro.running){
+    metro.running=false;
+    if(metro.timerId) clearTimeout(metro.timerId);
+    document.getElementById('metroBtn').classList.remove('stop');
+    document.getElementById('metroBtnTxt').textContent='🥁 開始';
+    document.getElementById('metroLight').style.background='#2c2c2e';
+  } else {
+    ensureMetroCtx();
+    metro.running=true;
+    metro.nextTime=metro.ctx.currentTime+0.08;
+    metro.clickNum=0;
+    document.getElementById('metroBtn').classList.add('stop');
+    document.getElementById('metroBtnTxt').textContent='⏹ 停止';
+    metroScheduler();
+  }
+}
+
+function adjustBpm(d){
+  metro.bpm=Math.max(20,Math.min(300,metro.bpm+d));
+  document.getElementById('metroBpmNum').textContent=metro.bpm;
+  document.getElementById('bpmSlider').value=metro.bpm;
+}
+function setBpmSlider(v){
+  metro.bpm=parseInt(v);
+  document.getElementById('metroBpmNum').textContent=metro.bpm;
+}
+// 分割UIの有効/無効切り替え
+function setSubdivDisabled(disabled){
+  const sec = document.querySelector('.metro-subdiv-section');
+  if(!sec) return;
+  sec.classList.toggle('disabled', disabled);
+  sec.querySelectorAll('[data-sd]').forEach(b=>{ b.disabled=disabled; });
+}
+
+function setTimeSig(btn){
+  document.querySelectorAll('[data-ts]').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('[data-cp]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  metro.timeSig=parseInt(btn.dataset.ts);
+  metro.isEighthBase=false;
+  metro.groups=[];
+  metro.clickNum=0;
+  setSubdivDisabled(false);
+}
+function setSubdiv(btn){
+  document.querySelectorAll('[data-sd]').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('[data-cp]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  metro.subdiv=parseInt(btn.dataset.sd);
+  metro.clickNum=0;
+}
+// 8分音符系拍子: グループ配列を受け取り、8分音符モードに入る
+function setCompound(btn, groups){
+  document.querySelectorAll('[data-ts]').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('[data-sd]').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('[data-cp]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  metro.isEighthBase=true;
+  metro.groups=groups;
+  metro.clickNum=0;
+  setSubdivDisabled(true);
+}
+function setMetroSound(btn){
+  document.querySelectorAll('[data-ms]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  metro.sound=btn.dataset.ms;
+}
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+buildPiano();
+buildOctRow();
+// ResizeObserverが最初の描画を行うので初回drawGraph()は不要
+</script>
+</body>
+</html>
