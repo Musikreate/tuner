@@ -186,19 +186,14 @@ body.pres-mode .graph-maxbtn{
   bottom:auto;top:10px;right:10px;
 }
 
-/* ── 設定エリア（外枠: flex列。上部カードはスクロール内、基準音出力は底固定） ── */
+/* ── 設定エリア（スクロール可能） ── */
 .t-settings{
   grid-area:settings;
-  overflow:hidden;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
   max-height:44vh;
   padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
   display:flex;flex-direction:column;
-}
-/* スクロール可能な上部カード群 */
-.t-settings-scroll{
-  flex:1;min-height:0;
-  overflow-y:auto;
-  -webkit-overflow-scrolling:touch;
 }
 
 /* ── メトロノーム上部（BPM＋スライダー＋開始ボタン） ── */
@@ -213,22 +208,21 @@ body.pres-mode .graph-maxbtn{
 .metro-bpm-big{font-size:52px;font-weight:800;line-height:1;}
 /* 刻みトグル＋±ボタン行 */
 .metro-step-row{ display:flex; align-items:center; gap:5px; }
-/* ── メトロノーム下部（外枠: flex列。上部カードはスクロール内、クリック音量は底固定） ── */
+/* ── メトロノーム下部（チップ類） ── */
 .t-metro-btm{
   grid-area:metro-btm;
-  overflow:hidden;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
   min-height:0;
-  /* portrait: グラフが潰れないようカード列の最大高さを制限 */
   max-height:44vh;
   padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
   display:flex;flex-direction:column;
 }
-/* スクロール可能な上部カード群 */
-.t-metro-scroll{
-  flex:1;min-height:0;
-  overflow-y:auto;
-  -webkit-overflow-scrolling:touch;
-}
+/* 設定エリア: metro と同じコンパクト余白 */
+.t-settings .card{ padding:9px 13px; margin-top:7px; }
+.t-settings .card:first-child{ margin-top:0; }
+.t-settings .card-lbl{ font-size:9px; margin-bottom:5px; }
+
 .t-metro-btm .card{ margin-top:7px; }
 .t-metro-btm .card:first-child{ margin-top:0; }
 /* metro内のチップを詰める */
@@ -241,7 +235,8 @@ body.pres-mode .graph-maxbtn{
 .metro-chip-2col{ display:grid; grid-template-columns:1fr 1fr; gap:4px; }
 .metro-chip-2col .chip{ padding:5px 1px; }
 /* 拍子チップ用 3列グリッド */
-.metro-ts-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
+.metro-ts-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
+.metro-ts-grid .chip{ padding:3px 1px; }
 /* 分割チップ用 4列グリッド */
 .metro-subdiv-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
 
@@ -258,20 +253,20 @@ body.pres-mode .graph-maxbtn{
 /* Transposition */
 .trans-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
 .tbtn{
-  padding:7px 3px;border-radius:9px;
+  padding:4px 3px;border-radius:9px;
   border:1.5px solid var(--bg4);background:var(--bg4);
   color:var(--txt2);font-size:11px;font-weight:500;
-  cursor:pointer;text-align:center;line-height:1.35;transition:all .15s;
+  cursor:pointer;text-align:center;line-height:1;transition:all .15s;
 }
 .tbtn.on{background:#0a84ff18;border-color:var(--blue);color:var(--blue)}
 
 /* A4 */
 .a4-row{display:flex;align-items:center;justify-content:space-between}
-.a4-num{font-size:28px;font-weight:700}
+.a4-num{font-size:22px;font-weight:700}
 .a4-unit{font-size:11px;color:var(--txt3);margin-left:3px}
 .pm-btn{
-  width:36px;height:36px;border-radius:50%;
-  border:none;background:var(--bg4);color:var(--txt1);font-size:20px;
+  width:28px;height:28px;border-radius:50%;
+  border:none;background:var(--bg4);color:var(--txt1);font-size:17px;
   cursor:pointer;display:flex;align-items:center;justify-content:center;
   transition:background .15s;
 }
@@ -337,13 +332,13 @@ input[type=range]::-webkit-slider-thumb{
   /* 左カラム: 設定 */
   .t-settings{
     max-height:none;
-    overflow:hidden;
+    overflow-y:auto;
     padding-bottom:4px;
   }
 
   /* 右端カラム: メトロノーム（上下分割） */
   .t-metro-top{ padding:4px 0; }
-  .t-metro-btm{ padding-bottom:4px; overflow:hidden; max-height:none; }
+  .t-metro-btm{ padding-bottom:4px; overflow-y:auto; max-height:none; }
   .metro-bpm-big{font-size:38px;}
 
   /* 中央カラム: グラフ (2行にスパン) */
@@ -416,6 +411,9 @@ input[type=range]::-webkit-slider-thumb{
 }
 .tnote.acc{ background:var(--bg3);color:var(--txt3);font-size:9px; }
 .tnote.pl,.tnote.on{ background:#0a84ff18;border-color:var(--blue);color:var(--blue); }
+/* 波形選択・オクターブオフセット: note ボタンと同じ高さ */
+.tone-wave{ padding:4px 2px; line-height:1.2; }
+.tone-oct{ font-size:10px; }
 
 @media (max-width:360px){
   .note-letter{font-size:72px}
@@ -468,16 +466,13 @@ input[type=range]::-webkit-slider-thumb{
       <!-- SETTINGS: 下部スクロールエリア -->
       <div class="t-settings">
 
-        <!-- スクロール可能な上部カード群 -->
-        <div class="t-settings-scroll">
-
         <div class="card">
           <div class="card-lbl">移調楽器モード</div>
           <div class="trans-grid">
-            <button class="tbtn on" data-t="0"  onclick="setTrans(this)">C管<br><small>実音</small></button>
-            <button class="tbtn"    data-t="2"  onclick="setTrans(this)">B♭管<br><small>Cl・Tp・Sax(T)</small></button>
-            <button class="tbtn"    data-t="9"  onclick="setTrans(this)">E♭管<br><small>Sax(A/B)</small></button>
-            <button class="tbtn"    data-t="7"  onclick="setTrans(this)">F管<br><small>ホルン</small></button>
+            <button class="tbtn on" data-t="0"  onclick="setTrans(this)">C管</button>
+            <button class="tbtn"    data-t="2"  onclick="setTrans(this)">B♭管</button>
+            <button class="tbtn"    data-t="9"  onclick="setTrans(this)">E♭管</button>
+            <button class="tbtn"    data-t="7"  onclick="setTrans(this)">F管</button>
           </div>
         </div>
 
@@ -508,9 +503,7 @@ input[type=range]::-webkit-slider-thumb{
             <input type="range" id="speedSl" min="1" max="5" value="3"
                    oninput="setSpeed(this.value)">
             <span class="spd-lbl">速</span>
-          </div>
-          <div style="text-align:center;margin-top:5px">
-            <span class="spd-val" id="speedLabel">標準</span>
+            <span id="speedLabel" style="font-size:11px;font-weight:600;color:var(--txt2);min-width:32px;text-align:right">標準</span>
           </div>
         </div>
 
@@ -523,17 +516,17 @@ input[type=range]::-webkit-slider-thumb{
           </div>
         </div>
 
-        </div><!-- /t-settings-scroll -->
-
-        <!-- 基準音出力（底に固定） -->
+        <!-- 基準音出力 -->
         <div class="card">
           <div class="card-lbl">基準音出力</div>
-          <!-- オクターブ選択 -->
-          <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
-            <span class="spd-lbl">oct:</span>
-            <button class="chip tone-oct"    onclick="setToneOct(3,this)">3</button>
-            <button class="chip on tone-oct" onclick="setToneOct(4,this)">4</button>
-            <button class="chip tone-oct"    onclick="setToneOct(5,this)">5</button>
+          <!-- オクターブ選択 (-2〜+2 オフセット) -->
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:6px">
+            <span style="font-size:9px;color:var(--txt3);display:flex;align-items:center;justify-content:center">Oct</span>
+            <button class="tnote tone-oct"    onclick="setToneOct(2,this)">-2</button>
+            <button class="tnote tone-oct"    onclick="setToneOct(3,this)">-1</button>
+            <button class="tnote on tone-oct" onclick="setToneOct(4,this)"> 0</button>
+            <button class="tnote tone-oct"    onclick="setToneOct(5,this)">+1</button>
+            <button class="tnote tone-oct"    onclick="setToneOct(6,this)">+2</button>
           </div>
           <!-- 12音クロマチックグリッド (6列×2行) -->
           <div class="tone-note-grid">
@@ -560,9 +553,9 @@ input[type=range]::-webkit-slider-thumb{
           </div>
           <!-- 波形タイプ -->
           <div class="chip-row" style="margin-top:5px">
-            <button class="chip on tone-wave" onclick="setWave('sine',this)">サイン<br><small>純音</small></button>
-            <button class="chip tone-wave"    onclick="setWave('triangle',this)">三角<br><small>柔らか</small></button>
-            <button class="chip tone-wave"    onclick="setWave('square',this)">矩形<br><small>強め</small></button>
+            <button class="chip on tone-wave" onclick="setWave('sine',this)">サイン</button>
+            <button class="chip tone-wave"    onclick="setWave('triangle',this)">三角</button>
+            <button class="chip tone-wave"    onclick="setWave('square',this)">矩形</button>
           </div>
         </div>
 
@@ -599,9 +592,6 @@ input[type=range]::-webkit-slider-thumb{
 
       <!-- ── メトロノーム下部（チップ類） ── -->
       <div class="t-metro-btm">
-
-        <!-- スクロール可能な上部カード群 -->
-        <div class="t-metro-scroll">
 
         <!-- 拍子: 3×5 グリッド（単純拍子＋8分音符系） -->
         <div class="card">
@@ -664,9 +654,7 @@ input[type=range]::-webkit-slider-thumb{
           </div>
         </div>
 
-        </div><!-- /t-metro-scroll -->
-
-        <!-- クリック音量（底に固定） -->
+        <!-- クリック音量 -->
         <div class="card">
           <div class="card-lbl">クリック音量</div>
           <div class="metro-vol-row">
