@@ -223,7 +223,7 @@ body.pres-mode .graph-maxbtn{
 .t-settings .card:first-child{ margin-top:0; }
 .t-settings .card-lbl{ font-size:9px; margin-bottom:5px; }
 
-.t-metro-btm .card{ margin-top:7px; }
+.t-metro-btm .card{ padding:9px 13px; margin-top:7px; }
 .t-metro-btm .card:first-child{ margin-top:0; }
 /* metro内のチップを詰める */
 .t-metro-btm .chip{ font-size:10px; padding:6px 1px; }
@@ -236,7 +236,7 @@ body.pres-mode .graph-maxbtn{
 .metro-chip-2col .chip{ padding:5px 1px; }
 /* 拍子チップ用 3列グリッド */
 .metro-ts-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
-.metro-ts-grid .chip{ padding:3px 1px; }
+.metro-ts-grid .chip{ padding:7px 1px; }
 /* 分割チップ用 4列グリッド */
 .metro-subdiv-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
 
@@ -548,7 +548,7 @@ input[type=range]::-webkit-slider-thumb{
           <!-- 音量 -->
           <div class="spd-row" style="margin-top:5px">
             <span class="spd-lbl">🔇</span>
-            <input type="range" id="volSl" min="0" max="100" value="65">
+            <input type="range" id="volSl" min="0" max="100" value="65" oninput="onToneVolInput(this)">
             <span class="spd-lbl">🔊</span>
           </div>
           <!-- 波形タイプ -->
@@ -649,8 +649,6 @@ input[type=range]::-webkit-slider-thumb{
             <button class="chip"    data-ms="wood"  onclick="setMetroSound(this)">ウッド</button>
             <button class="chip"    data-ms="hihat" onclick="setMetroSound(this)">チッ</button>
             <button class="chip"    data-ms="beep"  onclick="setMetroSound(this)">ビープ</button>
-            <button class="chip"    data-ms="conga" onclick="setMetroSound(this)">コンガ</button>
-            <button class="chip"    data-ms="chime" onclick="setMetroSound(this)">チャイム</button>
           </div>
         </div>
 
@@ -711,6 +709,7 @@ let freqBufMax  = 4;
 let noSigThresh = 80;
 
 let toneCtx, toneOsc, toneGain, activeKey, waveType = 'sine', selOct = 4;
+let activeNi = null; // 再生中の音（クロマチック番号 0-11）。A4リアルタイム変更に使用
 
 // 音名配列（シャープ / フラット / ソルフェージュ）
 const NOTES_SHARP = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
@@ -1138,6 +1137,14 @@ function stopTuner(){
 function adjA4(d){
   a4=Math.max(430,Math.min(450,a4+d));
   document.getElementById('a4n1').textContent=a4;
+  // 再生中ならオシレーターの周波数もリアルタイムに追従
+  if(toneOsc&&toneCtx&&activeNi!==null){
+    const midi=(selOct+1)*12+activeNi;
+    const freq=a4*Math.pow(2,(midi-69)/12);
+    toneOsc.frequency.setValueAtTime(freq,toneCtx.currentTime);
+    document.getElementById('toneNote').textContent=
+      NOTES_SHARP[activeNi]+selOct+'  '+freq.toFixed(1)+' Hz';
+  }
 }
 function setTrans(btn){
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
@@ -1189,7 +1196,7 @@ async function startToneNote(ni, btn){
   toneGain.gain.linearRampToValueAtTime(vol,toneCtx.currentTime+0.04);
   toneOsc.connect(toneGain);toneGain.connect(toneCtx.destination);
   toneOsc.start();
-  btn.classList.add('pl');activeKey=btn;
+  btn.classList.add('pl');activeKey=btn;activeNi=ni;
   document.getElementById('toneNote').textContent=
     NOTES_SHARP[ni]+selOct+'  '+freq.toFixed(1)+' Hz';
 }
@@ -1205,18 +1212,35 @@ function stopKey(){
     toneOsc=toneGain=null;
   }
   if(activeKey){activeKey.classList.remove('pl');activeKey=null;}
+  activeNi=null;
   document.getElementById('toneNote').textContent='';
 }
 function setToneOct(o, btn){
   selOct=o;
   document.querySelectorAll('.tone-oct').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
-  stopKey();  // オクターブ変更時は一旦停止
+  // 再生中ならその場でオクターブも追従（停止しない）
+  if(toneOsc&&toneCtx&&activeNi!==null){
+    const midi=(selOct+1)*12+activeNi;
+    const freq=a4*Math.pow(2,(midi-69)/12);
+    toneOsc.frequency.setValueAtTime(freq,toneCtx.currentTime);
+    document.getElementById('toneNote').textContent=
+      NOTES_SHARP[activeNi]+selOct+'  '+freq.toFixed(1)+' Hz';
+  }
 }
 function setWave(t, btn){
   waveType=t;
   document.querySelectorAll('.tone-wave').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
+  // 再生中なら波形もリアルタイムに切り替え（クリックノイズなし）
+  if(toneOsc) toneOsc.type=waveType;
+}
+// 音量スライダー: 再生中はリアルタイムに追従
+function onToneVolInput(input){
+  if(toneGain&&toneCtx){
+    const vol=parseInt(input.value)/100*0.72;
+    toneGain.gain.setTargetAtTime(vol,toneCtx.currentTime,0.01);
+  }
 }
 
 // ══════════════════════════════════════
@@ -1233,7 +1257,7 @@ const metro = {
 let metroAccent = true;
 let bpmStep = 5;
 let metroVol = { master:0.72, accent:1.0, beat:0.75, subdiv:0.45 };
-const SOUND_GAIN = { click:1.0, wood:1.0, hihat:0.85, beep:0.45, conga:1.0, chime:0.55 };
+const SOUND_GAIN = { click:1.0, wood:1.0, hihat:0.85, beep:0.45 };
 
 function toggleAccent(btn){
   metroAccent = !metroAccent;
@@ -1262,8 +1286,6 @@ function ensureMetroCtx(){
 /* 音色ごとのクリック生成 ─── チューナーへの干渉を最小化
    ・click/wood/beep : 短い発音 → NSFDの RMS閾値を短時間で下回る
    ・hihat           : 4kHz以上のハイパスノイズ → ピッチ検出上限(2100Hz)超え
-   ・conga           : 低域ノイズ → NSDF相関が低くピッチ検出されにくい
-   ・chime           : 2200Hz以上の純音 → ピッチ検出上限(2100Hz)超え・非干渉
    3段階レベル: lvl=2=アクセント(小節頭) / 1=拍頭 / 0=分割(裏拍)            */
 function metroClick(time, isAccent, isBeat){
   const effectiveAccent = isAccent && metroAccent;
@@ -1320,34 +1342,6 @@ function metroClick(time, isAccent, isBeat){
       o.start(time);o.stop(time+0.1);
       break;
     }
-    case 'conga':{
-      // 低域ノイズ → NSDF相関が低くピッチ検出されにくい
-      const lpFreqs=[200,350,500];
-      const sz=Math.round(ctx.sampleRate*0.12);
-      const buf=ctx.createBuffer(1,sz,ctx.sampleRate);
-      const d=buf.getChannelData(0);
-      for(let i=0;i<sz;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(sz*0.3));
-      const src=ctx.createBufferSource(); src.buffer=buf;
-      const lp=ctx.createBiquadFilter();
-      lp.type='lowpass';lp.frequency.value=lpFreqs[lvl];
-      const e=ctx.createGain();
-      e.gain.value=vol;
-      src.connect(lp);lp.connect(e);e.connect(ctx.destination);
-      src.start(time);
-      break;
-    }
-    case 'chime':{
-      // 2200Hz以上 → ピッチ検出上限(2100Hz)を超えるので非干渉
-      const freqs=[2200,2637,3136];
-      const o=ctx.createOscillator(),e=ctx.createGain();
-      o.type='sine';
-      o.frequency.value=freqs[lvl];
-      e.gain.setValueAtTime(vol,time);
-      e.gain.exponentialRampToValueAtTime(0.001,time+0.35);
-      o.connect(e);e.connect(ctx.destination);
-      o.start(time);o.stop(time+0.4);
-      break;
-    }
   }
   // ビジュアルフラッシュ: 赤=アクセント / 緑=拍頭 / 青=裏拍(分割)
   const flashColors=['var(--blue)','var(--green)','var(--red)'];
@@ -1366,7 +1360,7 @@ function metroScheduler(){
   const AHEAD=0.14; // 140ms 先読み
 
   if(metro.isEighthBase){
-    // ── 8分音符系: BPMは4分音符基準 → 8分音符 = 30/bpm 秒
+    // ── 8分音符系拍子(3/8,5/8,6/8,7/8,9/8,12/8): BPMは4分音符基準 → 8分音符 = 30/bpm 秒
     const clickDur = 30/metro.bpm;
     const total = metro.groups.reduce((a,b)=>a+b, 0);
     // グループ先頭位置を事前計算
@@ -1387,7 +1381,7 @@ function metroScheduler(){
       metro.clickNum=(metro.clickNum+1)%total;
     }
   } else {
-    // ── 通常モード: timeSig × subdiv
+    // ── 通常モード: timeSig × subdiv（BPMは4分音符基準）
     const total=metro.timeSig*metro.subdiv;
     const clickDur=(60/metro.bpm)/metro.subdiv;
     while(metro.nextTime < metro.ctx.currentTime+AHEAD){
