@@ -4478,13 +4478,17 @@ function startRecording(){
     const combined=new MediaStream([videoTrack,audioTrack]);
 
     // 優先順位: WebM(VP9→VP8→無指定) → MP4(H.264明示→無指定=Safariのネイティブ)
+    // mp4(H.264/AAC)を最優先にする。
+    // カメラロール(iPhoneの「写真」アプリ)経由での保存を考えると、webmは
+    // Photosアプリが受け付けず「カメラロールに保存」できないため、
+    // 対応していればまずmp4を選び、mp4が使えない環境でのみwebmにフォールバックする。
     const videoMimeCandidates=[
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm',
       'video/mp4;codecs="avc1.42E01E,mp4a.40.2"', // H.264 Baseline + AAC-LC
       'video/mp4;codecs=avc1',
       'video/mp4', // Safariはここでネイティブに H.264/AAC を選択
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
     ];
     let vMime='';
     if(window.MediaRecorder){
