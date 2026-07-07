@@ -107,7 +107,7 @@ body{
 */
 .tuner-layout{
   display:grid;
-  grid-template-rows: auto minmax(150px, 1fr) auto;
+  grid-template-rows: auto minmax(150px, 1fr) minmax(130px, 1fr);
   grid-template-columns: 1fr 210px;
   grid-template-areas:
     "top       metro-top"
@@ -375,12 +375,15 @@ body.pres-mode .graph-maxbtn{
   bottom:auto;top:10px;right:10px;
 }
 
-/* ── 設定エリア（スクロール可能） ── */
+/* ── 設定エリア（スクロール可能） ──
+   高さはグリッド行(minmax(130px,1fr))が決めるので、ここでvh固定の
+   max-heightは設けない(固定してしまうと、t-topを縮めて空いたスペースが
+   グラフ側にしか回らず、この可変スクロールエリアが広がらなくなるため)。 */
 .t-settings{
   grid-area:settings;
+  min-height:0;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
-  max-height:44vh;
   padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
   display:flex;flex-direction:column;
 }
@@ -403,7 +406,6 @@ body.pres-mode .graph-maxbtn{
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   min-height:0;
-  max-height:44vh;
   padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
   display:flex;flex-direction:column;
 }
@@ -438,6 +440,9 @@ body.pres-mode .graph-maxbtn{
   font-size:10px;color:var(--txt3);
   text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px;
 }
+/* 録音補助ボタン用カード: 先頭ボタンの余分な上マージンを消す */
+.rec-aux-card{padding:8px 10px}
+.rec-aux-card .rec-mode-btn{margin-top:0}
 
 /* Transposition */
 .trans-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
@@ -803,10 +808,7 @@ input[type=range]::-webkit-slider-thumb{
   .hz-line{font-size:11px;min-height:14px;}
   /* BPMを少し小さく */
   .metro-bpm-big{font-size:44px;}
-  /* 設定エリアの上限を下げてグラフの高さを確保 */
-  .t-settings{max-height:28vh;}
-  .t-metro-btm{max-height:28vh;}
-  /* 音名エリア(t-top)も高さを詰めて、グラフに少しでも多く高さを回す */
+  /* 音名エリア(t-top)も高さを詰めて、グラフ・設定エリアに高さを回す */
   .t-top{padding:6px 0 4px;}
   .mic-meter-wrap{margin-top:3px}
   .start-btn{height:42px;margin-top:5px}
@@ -915,13 +917,6 @@ input[type=range]::-webkit-slider-thumb{
         <button class="rec-btn" id="recBtn" onclick="toggleRecording()" disabled>
           <span id="recBtnIco">⏺</span><span id="recBtnTxt">録音</span>
         </button>
-        <button class="rec-mode-btn" id="recModeBtn" onclick="toggleRecordVideoMode(this)">
-          🎬 波形も動画で保存: OFF
-        </button>
-        <!-- 停止してもグラフは残り続けるため、明示的にクリアしたい時用のボタン -->
-        <button class="graph-clear-btn" id="graphClearBtn" onclick="clearGraphData()">
-          🗑 波形をクリア
-        </button>
       </div>
 
       <!-- GRAPH: 残り高さをすべて使用 -->
@@ -958,6 +953,17 @@ input[type=range]::-webkit-slider-thumb{
 
       <!-- SETTINGS: 下部スクロールエリア -->
       <div class="t-settings">
+
+        <!-- 録音に関する補助操作。常時表示の必要はないためスクロールエリア側に配置 -->
+        <div class="card rec-aux-card">
+          <button class="rec-mode-btn" id="recModeBtn" onclick="toggleRecordVideoMode(this)">
+            🎬 波形も動画で保存: OFF
+          </button>
+          <!-- 停止してもグラフは残り続けるため、明示的にクリアしたい時用のボタン -->
+          <button class="graph-clear-btn" id="graphClearBtn" onclick="clearGraphData()">
+            🗑 波形をクリア
+          </button>
+        </div>
 
         <div class="card">
           <div class="card-lbl">練習モード（苦手な音リストの記録対象）</div>
@@ -1097,9 +1103,9 @@ input[type=range]::-webkit-slider-thumb{
                  oninput="setBpmSlider(this.value)">
           <span class="spd-lbl">300</span>
         </div>
-        <!-- 刻みトグル＋開始ボタン（margin-top:auto でチューナーボタンと下端揃え） -->
-        <div style="margin-top:auto">
-          <div class="metro-step-row" style="margin-top:8px">
+        <!-- 刻みトグル＋開始ボタン（BPMスライダー直下、無駄な余白なく詰めて配置） -->
+        <div>
+          <div class="metro-step-row" style="margin-top:10px">
             <button class="pm-btn" onclick="bpmMinus()">−</button>
             <button class="chip" id="stepToggle" onclick="toggleBpmStep(this)"
                     style="flex:1;font-size:11px;padding:6px 2px">刻み: ±5</button>
