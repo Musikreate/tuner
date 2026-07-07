@@ -264,6 +264,16 @@ body{
 .rec-discard-btn{background:var(--bg4);color:var(--txt2)}
 .rec-save-btn{background:var(--green);color:#000}
 
+/* ── カメラロール保存/共有ボタン(Web Share API対応時のみ表示) ── */
+.rec-share-btn{
+  width:100%;height:42px;margin-top:8px;border-radius:10px;
+  border:1.5px solid var(--blue);background:rgba(10,132,255,0.14);color:var(--blue);
+  font-size:13px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:opacity .15s,transform .1s,background .15s;
+}
+.rec-share-btn:active{transform:scale(.98);background:rgba(10,132,255,0.28)}
+
 /* ── グラフエリア ── */
 .t-graph{
   grid-area:graph;
@@ -1558,6 +1568,10 @@ input[type=range]::-webkit-slider-thumb{
       <button class="rec-discard-btn" onclick="discardRecording()">🗑 破棄</button>
       <button class="rec-save-btn" onclick="confirmSaveRecording()">💾 端末に保存</button>
     </div>
+    <!-- iPhone等でWeb Share APIが使える場合のみ表示。動画はカメラロールへ直接保存可能。
+         音声のみの場合はカメラロールには保存できない(Photosアプリは音声非対応)ため、
+         その他の共有先(ファイル/AirDrop等)への共有として案内する。 -->
+    <button class="rec-share-btn" id="recShareBtn" style="display:none" onclick="shareRecording()">📱 カメラロールに保存</button>
   </div>
 </div>
 
@@ -4635,7 +4649,64 @@ function openRecPreview(){
     setRecPlayUI(false);
     requestAnimationFrame(()=>drawRecGraph(0));
   }
+  updateRecShareBtnUI();
   document.getElementById('recModal').style.display='flex';
+}
+
+// ── ファイル名生成(保存・共有で共通利用) ──
+function buildRecFilename(){
+  let ext='webm';
+  if(recMimeType.includes('mp4')) ext=lastRecordWasVideo?'mp4':'m4a';
+  const ts=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const fname=`tuner_recording_${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`;
+  return {fname,ext};
+}
+
+// ── カメラロール保存/共有ボタンの表示切替 ──
+// Web Share API (ファイル共有)に対応している端末(主にiPhone/Android)でのみボタンを出す。
+// 動画はiOSの共有シートから「ビデオを保存」でカメラロールに直接保存できる。
+// 音声のみはカメラロール(Photosアプリ)自体が音声ファイルに非対応なため、
+// その他の共有先(ファイルに保存/AirDrop等)向けのボタンとして案内文言を変える。
+function updateRecShareBtnUI(){
+  const btn=document.getElementById('recShareBtn');
+  if(!btn) return;
+  let canShareFiles=false;
+  try{
+    if(previewBlob && navigator.canShare){
+      const {fname}=buildRecFilename();
+      const testFile=new File([previewBlob],fname,{type:recMimeType});
+      canShareFiles=navigator.canShare({files:[testFile]});
+    }
+  }catch(e){ canShareFiles=false; }
+  if(canShareFiles){
+    btn.style.display='flex';
+    btn.textContent=lastRecordWasVideo ? '📱 カメラロールに保存' : '📤 共有(ファイル保存・AirDropなど)';
+  } else {
+    btn.style.display='none';
+  }
+}
+
+async function shareRecording(){
+  if(!previewBlob) return;
+  const btn=document.getElementById('recShareBtn');
+  const {fname}=buildRecFilename();
+  try{
+    const file=new File([previewBlob],fname,{type:recMimeType});
+    if(!(navigator.canShare && navigator.canShare({files:[file]}))){
+      alert('この端末・ブラウザでは共有機能が利用できません。「端末に保存」をお使いください。');
+      return;
+    }
+    await navigator.share({
+      files:[file],
+      title:'波形チューナー 録音',
+    });
+  }catch(err){
+    // ユーザーが共有をキャンセルした場合(AbortError)は何もしない
+    if(err && err.name==='AbortError') return;
+    console.log('share failed:', err);
+    if(btn) alert('共有に失敗しました。「端末に保存」をお試しください。');
+  }
 }
 
 function toggleRecPlayback(){
@@ -4653,11 +4724,7 @@ function updateRecTimeLabel(cur,dur){
 
 function confirmSaveRecording(){
   if(!previewBlob){ closeRecPreview(); return; }
-  let ext='webm';
-  if(recMimeType.includes('mp4')) ext=lastRecordWasVideo?'mp4':'m4a';
-  const ts=new Date();
-  const pad=n=>String(n).padStart(2,'0');
-  const fname=`tuner_recording_${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`;
+  const {fname}=buildRecFilename();
 
   const a=document.createElement('a');
   a.href=previewURL;
