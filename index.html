@@ -46,20 +46,32 @@ body{
   body{ height:100dvh; }
 }
 
-/* ── Header ── */
+/* ── Header ──
+   タイトルが極端に狭い幅に押しつぶされて縦書き状態(1文字ずつ改行)になったり、
+   逆にナビボタン側が画面幅からはみ出して見切れたりしないよう、
+   ・タイトルは絶対に縮めない(flex-shrink:0 + nowrap)
+   ・右側(ラベル+ナビボタン)は幅が足りなければ次の行に折り返す(flex-wrap)
+   ・折り返しても1行に収まらない場合は、その行だけ横スクロールできるようにする
+   という3段構えにして、どんな画面幅でも文字や要素が壊れないようにしている。 */
 .hdr{
   width:100%;flex-shrink:0;
   padding:11px 18px 9px;
-  display:flex;align-items:center;justify-content:space-between;
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:6px 10px;
   background:var(--bg3);border-bottom:1px solid var(--bg4);
 }
-.hdr-title{font-size:16px;font-weight:700}
-.hdr-sub{font-size:11px;color:var(--txt3)}
-.hdr-right{display:flex;align-items:center;gap:10px}
+.hdr-title{font-size:16px;font-weight:700;flex-shrink:0;white-space:nowrap}
+.hdr-sub{font-size:11px;color:var(--txt3);white-space:nowrap;flex-shrink:0}
+.hdr-right{
+  display:flex;align-items:center;gap:10px;flex-wrap:nowrap;
+  max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.hdr-right::-webkit-scrollbar{display:none}
 .hdr-nav-btn{
   background:rgba(10,132,255,0.14);border:1.5px solid var(--blue);color:var(--blue);
   border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;
-  cursor:pointer;white-space:nowrap;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
 }
 .hdr-nav-btn:active{background:rgba(10,132,255,0.28)}
 
@@ -95,7 +107,7 @@ body{
 */
 .tuner-layout{
   display:grid;
-  grid-template-rows: auto minmax(80px, 1fr) auto;
+  grid-template-rows: auto minmax(150px, 1fr) auto;
   grid-template-columns: 1fr 210px;
   grid-template-areas:
     "top       metro-top"
@@ -689,9 +701,13 @@ input[type=range]::-webkit-slider-thumb{
 }
 
 /* ════════════════════
-   LANDSCAPE  (≥600px)
+   LANDSCAPE  (≥480px)
+   iPhone SE等の幅が狭い横向き端末(568px幅など)でも、上下スタック型の
+   ポートレート用グリッドではなく、この3カラム型を使わないと、
+   グラフが画面の下の方に押し出されて画面外に消えてしまうため、
+   閾値を600pxではなく480pxまで下げてある。
    ════════════════════ */
-@media (orientation:landscape) and (min-width:600px){
+@media (orientation:landscape) and (min-width:480px){
   .hdr{padding:7px 16px}
   .hdr-title{font-size:15px}
   .tab{padding:7px 0;font-size:13px}
@@ -706,10 +722,16 @@ input[type=range]::-webkit-slider-thumb{
     gap:0 12px;
   }
 
-  /* 左カラム: 音名 */
+  /* 左カラム: 音名
+     注意: グラフ列(.t-graph)は.t-topと.t-metro-topの行(auto)にまたがっているため、
+     この行の内容が縦に長すぎると、画面が低い端末(Safari等でツールバー表示時)で
+     グラフごと画面外にはみ出して見えなくなってしまう。
+     そのため min-height:0 + overflow-y:auto を付け、内容がどうしても収まらない時は
+     グラフを犠牲にせず、この列内だけでスクロールできるようにしている。 */
   .t-top{
     padding:4px 0 4px;
     border-right:none;
+    min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
   }
   .note-letter{font-size:68px;letter-spacing:-3px}
   .note-letter sup{font-size:32px}
@@ -718,6 +740,9 @@ input[type=range]::-webkit-slider-thumb{
   .cents-line{font-size:17px;margin-top:3px}
   .hz-line{font-size:11px}
   .start-btn{height:42px;font-size:14px;margin-top:6px}
+  .rec-btn{height:32px;font-size:12px;margin-top:4px}
+  .rec-mode-btn{height:26px;margin-top:4px}
+  .graph-clear-btn{height:26px;margin-top:4px}
 
 
   /* 左カラム: 設定 */
@@ -728,7 +753,7 @@ input[type=range]::-webkit-slider-thumb{
   }
 
   /* 右端カラム: メトロノーム（上下分割） */
-  .t-metro-top{ padding:4px 0; }
+  .t-metro-top{ padding:4px 0; min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch; }
   .t-metro-btm{ padding-bottom:4px; overflow-y:auto; max-height:none; }
   .metro-bpm-big{font-size:38px;}
 
@@ -738,6 +763,30 @@ input[type=range]::-webkit-slider-thumb{
   }
 
   .card{margin-top:7px;padding:9px 12px}
+}
+
+/* ════════════════════
+   LANDSCAPE 幅が狭い端末 (480px〜599px, iPhone SE等)
+   左右カラムをさらに狭めてグラフ幅を確保
+   ════════════════════ */
+@media (orientation:landscape) and (min-width:480px) and (max-width:599px){
+  .tuner-layout{
+    grid-template-columns: 140px 1fr 150px;
+    padding:6px 8px 8px;
+    gap:0 8px;
+  }
+  .note-letter{font-size:46px;letter-spacing:-2px}
+  .note-letter sup{font-size:22px}
+  .note-enharmonic{font-size:10px;margin-top:-1px}
+  .note-oct{font-size:11px}
+  .cents-line{font-size:13px;margin-top:2px}
+  .hz-line{font-size:10px}
+  .start-btn{height:34px;font-size:12px;margin-top:4px}
+  .rec-btn{height:26px;font-size:10px;margin-top:3px}
+  .rec-mode-btn{height:20px;font-size:9px;margin-top:3px}
+  .graph-clear-btn{height:20px;font-size:9px;margin-top:3px}
+  .metro-bpm-big{font-size:26px}
+  .card{padding:6px 8px}
 }
 
 /* ════════════════════
@@ -755,8 +804,15 @@ input[type=range]::-webkit-slider-thumb{
   /* BPMを少し小さく */
   .metro-bpm-big{font-size:44px;}
   /* 設定エリアの上限を下げてグラフの高さを確保 */
-  .t-settings{max-height:38vh;}
-  .t-metro-btm{max-height:38vh;}
+  .t-settings{max-height:28vh;}
+  .t-metro-btm{max-height:28vh;}
+  /* 音名エリア(t-top)も高さを詰めて、グラフに少しでも多く高さを回す */
+  .t-top{padding:6px 0 4px;}
+  .mic-meter-wrap{margin-top:3px}
+  .start-btn{height:42px;margin-top:5px}
+  .rec-btn{height:32px;margin-top:4px}
+  .rec-mode-btn{height:26px;margin-top:4px}
+  .graph-clear-btn{height:26px;margin-top:4px}
 }
 
 /* ════════════════════
@@ -770,6 +826,10 @@ input[type=range]::-webkit-slider-thumb{
   .cents-line{font-size:14px;margin-top:2px;min-height:18px;}
   .hz-line{font-size:10px;min-height:12px;}
   .start-btn{height:36px;font-size:13px;margin-top:4px;}
+  .rec-btn{height:28px;font-size:11px;margin-top:3px;}
+  .rec-mode-btn{height:22px;font-size:10px;margin-top:3px;}
+  .graph-clear-btn{height:22px;font-size:10px;margin-top:3px;}
+  .mic-meter-wrap{margin-top:2px}
   .metro-bpm-big{font-size:28px;}
   .t-metro-top{padding:2px 0;}
   /* カード・チップをより詰める */
