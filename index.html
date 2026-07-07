@@ -22,6 +22,7 @@ button,input[type=range]{touch-action:manipulation;}
   --yel:   #ffd60a;
   --red:   #ff453a;
   --blue:  #0a84ff;
+  --scale-hl: #00e5ff;
 }
 
 html,body{
@@ -54,13 +55,23 @@ body{
 }
 .hdr-title{font-size:16px;font-weight:700}
 .hdr-sub{font-size:11px;color:var(--txt3)}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.hdr-nav-btn{
+  background:rgba(10,132,255,0.14);border:1.5px solid var(--blue);color:var(--blue);
+  border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;
+  cursor:pointer;white-space:nowrap;
+}
+.hdr-nav-btn:active{background:rgba(10,132,255,0.28)}
 
 /* ── Tabs (非表示) ── */
 .tabs{ display:none; }
 
 /* ── Outer: fills remaining viewport height ── */
+/* 幅の上限は設けない(波形グラフを画面幅いっぱいに自動で使うため)。
+   チューナー/メトロノームの設定ボタン類は各要素側でmax-width指定済みなので、
+   ここを広げても見た目が崩れない(横に伸びるのはグラフの列だけ)。 */
 .outer{
-  width:100%;max-width:960px;
+  width:100%;
   flex:1;min-height:0;  /* ←重要: flexでつぶれないように */
   display:flex;flex-direction:column;
   overflow:hidden;
@@ -118,6 +129,30 @@ body{
 }
 .hz-line{font-size:12px;color:var(--txt3);margin-top:1px;min-height:15px}
 
+/* ── マイク入力メーター (dBFS) ── */
+.mic-meter-wrap{
+  width:100%;max-width:420px;margin-top:5px;
+  display:flex;align-items:center;gap:8px;
+}
+.mic-meter-bar{
+  flex:1;height:7px;border-radius:4px;
+  background:var(--bg4);overflow:hidden;position:relative;
+}
+.mic-meter-fill{
+  height:100%;width:0%;border-radius:4px;
+  background:var(--green);
+  transition:width .05s linear, background-color .1s;
+}
+.mic-meter-fill.clip{
+  background:var(--red)!important;
+  box-shadow:0 0 8px var(--red);
+}
+.mic-meter-label{
+  font-size:10.5px;color:var(--txt3);min-width:76px;text-align:right;
+  font-variant-numeric:tabular-nums;flex-shrink:0;
+}
+.mic-meter-label.clip-warn{color:var(--red);font-weight:700}
+
 
 .start-btn{
   width:100%;max-width:420px;height:48px;
@@ -131,12 +166,100 @@ body{
 .start-btn:active{transform:scale(.98);opacity:.88}
 .start-btn.stop{background:var(--red);color:#fff}
 
+/* ── 録音ボタン ── */
+.rec-btn{
+  width:100%;max-width:420px;height:38px;
+  border-radius:10px;border:1.5px solid var(--bg4);
+  background:var(--bg3);color:var(--txt2);
+  font-size:13px;font-weight:600;cursor:pointer;
+  margin-top:6px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:opacity .15s,transform .1s,background .15s,color .15s,border-color .15s;
+}
+.rec-btn:active{transform:scale(.98)}
+.rec-btn:disabled{opacity:.35;cursor:not-allowed}
+.rec-btn.active{
+  background:rgba(255,69,58,0.12);border-color:var(--red);color:var(--red);
+}
+
+/* ── 録音モード切替(動画/音声) ── */
+.rec-mode-btn{
+  width:100%;max-width:420px;height:30px;
+  border-radius:9px;border:1.5px solid var(--bg4);
+  background:transparent;color:var(--txt3);
+  font-size:11px;font-weight:500;cursor:pointer;
+  margin-top:5px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.rec-mode-btn:active{transform:scale(.98)}
+.rec-mode-btn.on{
+  background:#0a84ff18;border-color:var(--blue);color:var(--blue);font-weight:600;
+}
+.rec-mode-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* ── 波形クリア(リセット)ボタン ── */
+.graph-clear-btn{
+  width:100%;max-width:420px;height:30px;
+  border-radius:9px;border:1.5px solid var(--bg4);
+  background:transparent;color:var(--txt3);
+  font-size:11px;font-weight:500;cursor:pointer;
+  margin-top:5px;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  transition:all .15s;
+}
+.graph-clear-btn:active{transform:scale(.98);background:rgba(255,69,58,0.10);border-color:var(--red);color:var(--red)}
+
+#recVideoEl{
+  width:100%;max-height:50vh;border-radius:10px;background:#000;display:block;
+}
+
+/* ── 録音プレビューモーダル ── */
+.rec-modal{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(0,0,0,0.72);
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+}
+.rec-modal-inner{
+  width:100%;max-width:480px;
+  background:var(--bg3);border-radius:16px;
+  padding:16px;border:1px solid var(--bg4);
+  display:flex;flex-direction:column;gap:10px;
+}
+.rec-modal-title{font-size:14px;font-weight:700;color:var(--txt1)}
+.rec-graph-wrap{
+  width:100%;height:140px;border-radius:10px;overflow:hidden;
+  background:#080809;border:1.5px solid var(--line);position:relative;
+}
+#recCanvas{display:block;width:100%;height:100%}
+.rec-controls{display:flex;align-items:center;gap:10px}
+.rec-play-btn{
+  padding:8px 16px;border-radius:9px;border:none;
+  background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;
+}
+.rec-play-btn:active{opacity:.85}
+.rec-time{font-size:12px;color:var(--txt3);font-variant-numeric:tabular-nums}
+.rec-action-row{display:flex;gap:8px;margin-top:4px}
+.rec-discard-btn,.rec-save-btn{
+  flex:1;height:42px;border-radius:10px;border:none;
+  font-size:13px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:opacity .15s,transform .1s;
+}
+.rec-discard-btn:active,.rec-save-btn:active{transform:scale(.98)}
+.rec-discard-btn{background:var(--bg4);color:var(--txt2)}
+.rec-save-btn{background:var(--green);color:#000}
+
 /* ── グラフエリア ── */
 .t-graph{
   grid-area:graph;
   min-height:0;          /* grid内でつぶれない */
   padding:8px 0;
   display:flex;
+  flex-direction:column;
+  gap:6px;
 }
 
 /* ★ グラフ枠: 親の高さいっぱいに広がる */
@@ -172,6 +295,60 @@ body{
   -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
 }
 .graph-maxbtn:active{background:rgba(255,255,255,0.22)}
+
+/* ── Phase2: 遡り(過去スクロール)関連 ── */
+#pitchCanvas{ touch-action:none; } /* スワイプ操作をブラウザのスクロール/ズームに奪われないように */
+.graph-wrap.scroll-mode{
+  border-color:rgba(10,132,255,0.65);
+}
+.graph-backbtn{
+  position:absolute;bottom:10px;left:10px;
+  height:30px;padding:0 12px;
+  border-radius:9px;border:none;
+  background:rgba(10,132,255,0.85);color:#fff;
+  font-size:12px;font-weight:600;
+  cursor:pointer;display:none;align-items:center;justify-content:center;gap:4px;
+  z-index:10;transition:background .15s;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+}
+.graph-backbtn:active{background:rgba(10,132,255,1)}
+.graph-swipe-badge{
+  position:absolute;top:0;left:0;
+  transform:translate(-50%,-100%);
+  padding:4px 10px;border-radius:8px;
+  background:rgba(30,30,32,0.92);border:1px solid var(--bg4);
+  color:var(--txt1);font-size:14px;font-weight:700;
+  pointer-events:none;white-space:nowrap;
+  display:none;z-index:11;
+}
+
+/* ── Phase6: ピッチ/音量(エンベロープ)表示切替バー ── */
+.graph-mode-bar{
+  flex-shrink:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:0 2px;
+}
+.graph-seg-ctrl{
+  display:flex;background:var(--bg4);border-radius:8px;padding:2px;gap:2px;
+}
+.graph-seg-btn{
+  border:none;background:transparent;color:var(--txt2);
+  font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer;
+}
+.graph-seg-btn.on{background:var(--blue);color:#fff}
+.graph-sub-ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.graph-sub-ctrl .chip{
+  flex:0 0 auto;padding:0 9px;font-size:10.5px;width:52px;height:26px;line-height:26px;
+  white-space:nowrap;text-align:center;
+}
+.env-ar-readout{
+  font-size:11px;color:var(--txt2);white-space:nowrap;
+  background:var(--bg4);border-radius:7px;padding:4px 9px;
+}
+.env-ar-readout b{color:var(--txt1)}
+.env-ceiling-ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%}
+.env-ceiling-label{font-size:10.5px;color:var(--txt2)}
+.env-ceiling-slider{width:110px;accent-color:var(--blue);vertical-align:middle}
+.env-ceiling-value{font-size:11px;color:var(--txt2);min-width:38px;display:inline-block;text-align:right}
 
 /* ── 全画面モード: ヘッダー・タブを隠してアプリ全体を拡張 ── */
 body.pres-mode .hdr,
@@ -281,6 +458,220 @@ body.pres-mode .graph-maxbtn{
   cursor:pointer;text-align:center;transition:all .15s;
 }
 .chip.on{background:#0a84ff18;border-color:var(--blue);color:var(--blue)}
+.view-chip-row .chip{padding:7px 1px;font-size:11px}
+.view-chip-row .chip small{font-size:9px}
+
+/* ── Phase3: 苦手な音リスト ── */
+.note-stats-list{
+  display:flex;flex-direction:column;gap:6px;
+  max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+}
+.note-stats-empty{font-size:12px;color:var(--txt3);text-align:center;padding:10px 0}
+.note-stat-row{
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg4);border-radius:9px;padding:8px 10px;
+  cursor:pointer;transition:background .15s;
+}
+.note-stat-row:active{background:#3a3a3c}
+.note-stat-note{font-size:15px;font-weight:700;min-width:38px}
+.note-stat-tendency{font-size:11px;padding:2px 6px;border-radius:6px;white-space:nowrap;font-weight:600}
+.note-stat-tendency.high{background:rgba(255,69,58,0.18);color:var(--red)}
+.note-stat-tendency.low{background:rgba(10,132,255,0.18);color:var(--blue)}
+.note-stat-tendency.flat{background:rgba(50,215,75,0.18);color:var(--green)}
+.note-stat-metrics{flex:1;font-size:11px;color:var(--txt2);text-align:right;line-height:1.4}
+
+/* 苦手な音リスト モーダル固有 */
+.note-stats-modal-inner{max-height:82vh}
+.note-stats-modal-hdr{display:flex;align-items:center;justify-content:space-between}
+.note-stats-close-btn{
+  width:30px;height:30px;border-radius:8px;border:none;
+  background:rgba(255,255,255,0.10);color:var(--txt2);font-size:15px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.note-stats-close-btn:active{background:rgba(255,255,255,0.22)}
+.note-stats-list-modal{max-height:50vh;flex:1}
+
+/* ── Phase4: ロングトーン練習画面 ── */
+.longtone-layout{
+  flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  display:flex;flex-direction:column;gap:10px;
+  padding:12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.lt-back-btn{
+  align-self:flex-start;
+  background:transparent;border:1.5px solid var(--bg4);color:var(--txt2);
+  border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;
+}
+.lt-back-btn:active{background:var(--bg4)}
+.lt-display{text-align:center;padding:22px 13px}
+.lt-note{font-size:56px;font-weight:800;line-height:1;color:var(--green)}
+.lt-cents{font-size:14px;color:var(--txt2);margin-top:6px;min-height:18px}
+.lt-timer{font-size:22px;font-weight:700;margin-top:16px;color:var(--txt1)}
+.lt-pct-row{display:flex;align-items:center;gap:10px;margin-top:14px}
+.lt-pct-bar-wrap{flex:1;height:10px;border-radius:5px;background:var(--bg4);overflow:hidden}
+.lt-pct-bar{height:100%;width:0%;background:var(--green);transition:width .15s, background .15s}
+.lt-pct-val{font-size:14px;font-weight:700;min-width:44px;text-align:right}
+.lt-result{text-align:center;font-size:14px;font-weight:600;color:var(--txt1)}
+.lt-result.best{color:var(--yel)}
+.lt-best-list{display:flex;flex-direction:column;gap:6px}
+.lt-best-row{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--bg4);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--txt2);
+}
+
+/* ── Phase5: スケール練習画面 ── */
+.scale-layout{
+  flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  display:flex;flex-direction:column;gap:10px;
+  padding:12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.tonic-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.tonic-grid .chip{padding:8px 2px}
+.scale-generated-text{
+  font-size:15px;font-weight:600;color:var(--txt1);text-align:center;
+  padding:10px 6px;background:var(--bg4);border-radius:9px;letter-spacing:.5px;
+}
+.keyboard-ctrl-row{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.piano-wrap{
+  display:flex;gap:2px;padding:8px 4px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+}
+.pkey{
+  flex:0 0 auto;width:34px;height:72px;border-radius:0 0 7px 7px;
+  border:1px solid var(--bg4);background:#f2f2f4;color:#111;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  font-size:10px;font-weight:700;padding-bottom:5px;cursor:pointer;position:relative;
+}
+.pkey small{font-size:8px;font-weight:500;color:#555;margin-top:1px}
+.pkey.black{
+  width:22px;height:46px;margin:0 -11px;z-index:2;
+  background:#1c1c1e;color:#f0f0f0;border-color:#000;
+}
+.pkey.black small{color:#aaa}
+.pkey.target{outline:3px solid var(--blue);z-index:3}
+.pkey.playing{background:var(--green)!important;color:#04210a}
+
+/* ── 「鍵盤で使用する音を表示」トグル: 音階に含まれる音のハイライト ──
+   視認性重視で蛍光シアンの縁取り+グロー。主音(1度)だけは金色で特別扱いし、
+   ひと目で「主音」とわかるようにする。各鍵には音階の何度(1〜7)かをバッジ表示し、
+   旋律的短音階で上行/下行の音が異なる6・7度だけ↑/↓を添える。 */
+.pkey.scale-tone{
+  box-shadow:inset 0 0 0 3px var(--scale-hl), 0 0 9px 1px rgba(0,229,255,0.65);
+  background:rgba(0,229,255,0.16);
+}
+.pkey.black.scale-tone{
+  background:rgba(0,229,255,0.45);
+}
+.pkey.scale-tone-root{
+  box-shadow:inset 0 0 0 3px var(--yel), 0 0 11px 2px rgba(255,214,10,0.75);
+  background:rgba(255,214,10,0.22);
+}
+.pkey.black.scale-tone-root{
+  background:rgba(255,214,10,0.5);
+}
+.scale-tone-badge{
+  position:absolute; top:2px; left:50%; transform:translateX(-50%);
+  font-size:10.5px; font-weight:800; color:#00e5ff; line-height:1;
+  pointer-events:none; text-shadow:0 0 3px #000,0 0 3px #000;
+  background:rgba(0,0,0,0.55); border-radius:5px; padding:1px 3px;
+}
+.pkey.scale-tone-root .scale-tone-badge{ color:#ffd60a; }
+.pkey.black .scale-tone-badge{ font-size:9.5px; }
+.custom-seq-preview{
+  display:flex;flex-wrap:wrap;gap:5px;min-height:32px;
+  background:var(--bg4);border-radius:8px;padding:7px;margin-top:8px;
+}
+.custom-note-chip{
+  background:rgba(10,132,255,0.16);border:1px solid var(--blue);color:var(--blue);
+  border-radius:6px;padding:3px 7px;font-size:12px;font-weight:600;
+}
+.custom-scale-list{display:flex;flex-direction:column;gap:6px}
+.custom-scale-row{
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg4);border-radius:8px;padding:7px 10px;font-size:12px;
+}
+.custom-scale-name{flex:1;font-weight:600;color:var(--txt1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.custom-scale-count{color:var(--txt3);font-size:11px;white-space:nowrap}
+.custom-scale-load-btn,.custom-scale-del-btn{
+  border:none;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;
+}
+.custom-scale-load-btn{background:rgba(10,132,255,0.18);color:var(--blue)}
+.custom-scale-del-btn{background:rgba(255,69,58,0.18);color:var(--red)}
+
+/* ── Phase7: 課題(エクササイズ)エディタ ── */
+.rhythm-editor{
+  display:flex;flex-wrap:wrap;gap:6px;min-height:40px;
+  background:var(--bg4);border-radius:8px;padding:8px;
+}
+.rhythm-cell{
+  display:flex;flex-direction:column;align-items:stretch;gap:3px;
+  background:var(--bg3);border:1px solid var(--line);border-radius:7px;padding:4px;width:64px;
+}
+.rhythm-cell.rest{border-color:var(--txt3)}
+.rhythm-cell-dur{
+  background:rgba(10,132,255,0.16);color:var(--blue);border:none;border-radius:5px;
+  font-size:12px;font-weight:700;padding:4px 2px;cursor:pointer;
+}
+.rhythm-cell.rest .rhythm-cell-dur{background:rgba(174,174,178,0.16);color:var(--txt2)}
+/* 音価バー: 長さを視覚的に示すグラフィック(全音符=満タンを基準に、音価に比例した幅で塗りつぶす) */
+.rhythm-cell-bar-track{
+  height:5px;border-radius:3px;background:var(--bg2);overflow:hidden;
+}
+.rhythm-cell-bar-fill{
+  height:100%;background:var(--blue);border-radius:3px;
+}
+.rhythm-cell.rest .rhythm-cell-bar-fill{background:var(--txt3)}
+.rhythm-cell-rest{
+  background:none;border:none;color:var(--txt3);font-size:10px;padding:2px;cursor:pointer;
+}
+.rhythm-cell.rest .rhythm-cell-rest{color:var(--yel)}
+.rhythm-cell-actions{display:flex;justify-content:space-between;gap:2px}
+.rhythm-cell-copy,.rhythm-cell-paste,.rhythm-cell-del{
+  flex:1;background:none;border:none;font-size:11px;padding:2px 0;cursor:pointer;border-radius:4px;
+}
+.rhythm-cell-copy:active,.rhythm-cell-paste:active,.rhythm-cell-del:active{background:var(--bg4)}
+.rhythm-cell-del{color:var(--red)}
+.ex-count-status{
+  font-size:12.5px;color:var(--txt2);background:var(--bg4);border-radius:8px;
+  padding:8px 10px;text-align:center;
+}
+.ex-count-status.mismatch{color:var(--red);font-weight:700}
+.ex-name-input{
+  width:100%;box-sizing:border-box;background:var(--bg4);border:1px solid var(--line);
+  color:var(--txt1);border-radius:8px;padding:9px 10px;font-size:14px;
+}
+.ex-exec-live-row{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  background:var(--bg4);border-radius:8px;padding:9px 12px;margin-top:8px;font-size:14px;font-weight:700;
+}
+.ex-review-legend{
+  display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--txt2);margin-bottom:8px;
+}
+.ex-review-legend span{display:flex;align-items:center;gap:4px}
+.ex-review-dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.ex-review-canvas-wrap{
+  background:var(--bg4);border-radius:8px;padding:6px;margin-bottom:10px;overflow-x:auto;
+}
+#exReviewCanvas{display:block}
+.ex-review-list{display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto}
+.ex-review-row{
+  display:flex;align-items:center;gap:8px;background:var(--bg4);border-radius:7px;padding:6px 10px;font-size:12px;
+}
+.ex-review-row .ex-review-note{font-weight:700;min-width:38px}
+.ex-review-row .ex-review-dev{flex:1;text-align:right;color:var(--txt2)}
+.ex-review-row.ok{border-left:3px solid var(--green)}
+.ex-review-row.warn{border-left:3px solid var(--yel)}
+.ex-review-row.bad{border-left:3px solid var(--red)}
+
+/* ── トースト通知 ── */
+.tuner-toast{
+  position:fixed;left:50%;bottom:90px;
+  transform:translateX(-50%) translateY(20px);
+  background:rgba(30,30,32,0.95);color:#fff;
+  padding:10px 16px;border-radius:10px;font-size:13px;
+  opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;
+  z-index:2000;max-width:80vw;text-align:center;
+}
+.tuner-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* Speed slider */
 .spd-row{display:flex;align-items:center;gap:9px;margin-top:2px}
@@ -431,7 +822,12 @@ input[type=range]::-webkit-slider-thumb{
 
 <div class="hdr">
   <div class="hdr-title">🎵 波形チューナー</div>
-  <div class="hdr-sub">プロトタイプ版</div>
+  <div class="hdr-right">
+    <div class="hdr-sub">プロトタイプ版</div>
+    <button class="hdr-nav-btn" id="hdrLongtoneBtn" onclick="showPanel('panel-longtone')">🎯 ロングトーン練習</button>
+    <button class="hdr-nav-btn" id="hdrScaleBtn" onclick="showPanel('panel-scale')">🎼 スケール練習</button>
+    <button class="hdr-nav-btn" id="hdrExerciseBtn" onclick="showPanel('panel-exercise-wip')">📝 課題練習</button>
+  </div>
 </div>
 
 
@@ -449,15 +845,52 @@ input[type=range]::-webkit-slider-thumb{
         <div class="note-oct"        id="noteOct"></div>
         <div class="cents-line"      id="centsLine"></div>
         <div class="hz-line"         id="hzLine"></div>
+        <div class="mic-meter-wrap" id="micMeterWrap" style="display:none">
+          <div class="mic-meter-bar"><div class="mic-meter-fill" id="micMeterFill"></div></div>
+          <div class="mic-meter-label" id="micMeterLabel">-- dBFS</div>
+        </div>
         <button class="start-btn" id="startBtn" onclick="toggleTuner()">
           <span id="sIco">🎤</span><span id="sTxt">チューニング開始</span>
+        </button>
+        <button class="rec-btn" id="recBtn" onclick="toggleRecording()" disabled>
+          <span id="recBtnIco">⏺</span><span id="recBtnTxt">録音</span>
+        </button>
+        <button class="rec-mode-btn" id="recModeBtn" onclick="toggleRecordVideoMode(this)">
+          🎬 波形も動画で保存: OFF
+        </button>
+        <!-- 停止してもグラフは残り続けるため、明示的にクリアしたい時用のボタン -->
+        <button class="graph-clear-btn" id="graphClearBtn" onclick="clearGraphData()">
+          🗑 波形をクリア
         </button>
       </div>
 
       <!-- GRAPH: 残り高さをすべて使用 -->
       <div class="t-graph">
+        <!-- Phase6: ピッチグラフ/音量(エンベロープ)表示の切替 -->
+        <div class="graph-mode-bar">
+          <div class="graph-seg-ctrl">
+            <button class="graph-seg-btn on" data-graph-mode="pitch"    onclick="setGraphDisplayMode(this)">ピッチ</button>
+            <button class="graph-seg-btn"    data-graph-mode="envelope" onclick="setGraphDisplayMode(this)">音量</button>
+          </div>
+          <div class="graph-sub-ctrl" id="envelopeSubCtrl" style="display:none">
+            <button class="chip on" data-env-yscale="linear" onclick="setEnvelopeYScale(this)">リニア</button>
+            <button class="chip"    data-env-yscale="db"     onclick="setEnvelopeYScale(this)">dB</button>
+          </div>
+          <!-- Phase6追加: リニア表示の「天井」を手動固定で設定する -->
+          <div class="env-ceiling-ctrl" id="envCeilingCtrl" style="display:none">
+            <span class="env-ceiling-label">天井</span>
+            <input type="range" class="env-ceiling-slider" id="envCeilingSlider"
+                   min="-50" max="0" step="1" value="-20"
+                   oninput="setEnvelopeCeilingManualDb(this.value)">
+            <span class="env-ceiling-value" id="envCeilingValueLabel">-20dB</span>
+          </div>
+        </div>
         <div class="graph-wrap" id="graphWrap">
           <canvas id="pitchCanvas"></canvas>
+          <!-- Phase2: 遡り中に指の位置の音名を表示するバッジ -->
+          <div class="graph-swipe-badge" id="swipeBadge"></div>
+          <!-- Phase2: 過去に遡った際に表示する「最新へ戻る」ボタン -->
+          <button class="graph-backbtn" id="backToLiveBtn" onclick="scrollToLive()" title="最新へ戻る">⏵ 最新へ戻る</button>
           <!-- 最大化ボタン -->
           <button class="graph-maxbtn" id="maxBtn" onclick="toggleMax()" title="全画面">⛶</button>
         </div>
@@ -465,6 +898,15 @@ input[type=range]::-webkit-slider-thumb{
 
       <!-- SETTINGS: 下部スクロールエリア -->
       <div class="t-settings">
+
+        <div class="card">
+          <div class="card-lbl">練習モード（苦手な音リストの記録対象）</div>
+          <div class="chip-row">
+            <button class="chip on" data-practice=""         onclick="setPracticeMode(this,null)">通常</button>
+            <button class="chip"    data-practice="longtone" onclick="setPracticeMode(this,'longtone')">ロングトーン</button>
+            <button class="chip"    data-practice="scale"    onclick="setPracticeMode(this,'scale')">スケール</button>
+          </div>
+        </div>
 
         <div class="card">
           <div class="card-lbl">移調楽器モード</div>
@@ -488,8 +930,9 @@ input[type=range]::-webkit-slider-thumb{
 
         <div class="card">
           <div class="card-lbl">波形の横幅（時間スケール）</div>
-          <div class="chip-row">
-            <button class="chip"    data-view="60"   onclick="setView(this)">短め<br><small>〜1秒</small></button>
+          <div class="chip-row view-chip-row">
+            <button class="chip"    data-view="60"   onclick="setView(this)">最短<br><small>〜1秒</small></button>
+            <button class="chip"    data-view="180"  onclick="setView(this)">短め<br><small>〜3秒</small></button>
             <button class="chip on" data-view="300"  onclick="setView(this)">標準<br><small>〜5秒</small></button>
             <button class="chip"    data-view="600"  onclick="setView(this)">広め<br><small>〜10秒</small></button>
             <button class="chip"    data-view="1200" onclick="setView(this)">最広<br><small>〜20秒</small></button>
@@ -504,6 +947,17 @@ input[type=range]::-webkit-slider-thumb{
                    oninput="setSpeed(this.value)">
             <span class="spd-lbl">速</span>
             <span id="speedLabel" style="font-size:11px;font-weight:600;color:var(--txt2);min-width:32px;text-align:right">標準</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-lbl">マイクゲイン（感度）</div>
+          <div class="spd-row">
+            <span class="spd-lbl">🔉</span>
+            <input type="range" id="micGainSl" min="0.1" max="5" step="0.1" value="1"
+                   oninput="onMicGainInput(this)">
+            <span class="spd-lbl">🔊</span>
+            <span id="micGainVal" style="font-size:11px;font-weight:600;color:var(--txt2);min-width:36px;text-align:right">1.0x</span>
           </div>
         </div>
 
@@ -557,6 +1011,14 @@ input[type=range]::-webkit-slider-thumb{
             <button class="chip tone-wave"    onclick="setWave('triangle',this)">三角</button>
             <button class="chip tone-wave"    onclick="setWave('square',this)">矩形</button>
           </div>
+        </div>
+
+        <!-- 苦手な音リスト(Phase3): タップした時だけ別画面(モーダル)で開く -->
+        <div class="card">
+          <div class="card-lbl">苦手な音リスト</div>
+          <button class="rec-mode-btn" id="openStatsBtn" onclick="openNoteStatsModal()">
+            📊 苦手な音リストを見る
+          </button>
         </div>
 
       </div><!-- /t-settings -->
@@ -685,7 +1147,396 @@ input[type=range]::-webkit-slider-thumb{
     </div><!-- /tuner-layout -->
   </div><!-- /tuner panel -->
 
+  <!-- ═══ ロングトーン練習 PANEL (Phase4) ═══ -->
+  <div class="panel" id="panel-longtone">
+    <div class="longtone-layout">
+      <button class="lt-back-btn" onclick="showPanel('panel-tuner')">← チューナーに戻る</button>
+
+      <div class="card">
+        <div class="card-lbl">キープ目標時間</div>
+        <div class="chip-row">
+          <button class="chip"    data-lt-dur="5"  onclick="setLongtoneDuration(this)">5秒</button>
+          <button class="chip on" data-lt-dur="10" onclick="setLongtoneDuration(this)">10秒</button>
+          <button class="chip"    data-lt-dur="20" onclick="setLongtoneDuration(this)">20秒</button>
+          <button class="chip"    data-lt-dur="30" onclick="setLongtoneDuration(this)">30秒</button>
+        </div>
+      </div>
+
+      <div class="card lt-display">
+        <div class="lt-note" id="ltNote">－</div>
+        <div class="lt-cents" id="ltCents"></div>
+        <div class="lt-timer" id="ltTimer">0.0 / 10.0 秒</div>
+        <div class="lt-pct-row">
+          <div class="lt-pct-bar-wrap"><div class="lt-pct-bar" id="ltPctBar"></div></div>
+          <div class="lt-pct-val" id="ltPctVal">0%</div>
+        </div>
+      </div>
+
+      <button class="start-btn" id="ltStartBtn" onclick="toggleLongtoneAttempt()">🎯 開始 (10秒)</button>
+
+      <div class="card lt-result" id="ltResult" style="display:none">
+        <div id="ltResultText"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-lbl">自己ベスト（キープ割合）</div>
+        <div id="ltBestList" class="lt-best-list"></div>
+      </div>
+    </div>
+  </div><!-- /longtone panel -->
+
+  <!-- ═══ スケール練習 PANEL (Phase5) ═══ -->
+  <div class="panel" id="panel-scale">
+    <div class="scale-layout">
+      <button class="lt-back-btn" onclick="showPanel('panel-tuner')">← チューナーに戻る</button>
+
+      <!-- 調の選択(五度圏テーブルからプログラム的に自動生成) -->
+      <div class="card">
+        <div class="card-lbl">主音(調)</div>
+        <div class="tonic-grid">
+          <button class="chip on" data-tonic-pc="0"  onclick="setScaleTonic(this)">C</button>
+          <button class="chip"    data-tonic-pc="1"  onclick="setScaleTonic(this)">C♯</button>
+          <button class="chip"    data-tonic-pc="2"  onclick="setScaleTonic(this)">D</button>
+          <button class="chip"    data-tonic-pc="3"  onclick="setScaleTonic(this)">D♯</button>
+          <button class="chip"    data-tonic-pc="4"  onclick="setScaleTonic(this)">E</button>
+          <button class="chip"    data-tonic-pc="5"  onclick="setScaleTonic(this)">F</button>
+          <button class="chip"    data-tonic-pc="6"  onclick="setScaleTonic(this)">F♯</button>
+          <button class="chip"    data-tonic-pc="7"  onclick="setScaleTonic(this)">G</button>
+          <button class="chip"    data-tonic-pc="8"  onclick="setScaleTonic(this)">G♯</button>
+          <button class="chip"    data-tonic-pc="9"  onclick="setScaleTonic(this)">A</button>
+          <button class="chip"    data-tonic-pc="10" onclick="setScaleTonic(this)">A♯</button>
+          <button class="chip"    data-tonic-pc="11" onclick="setScaleTonic(this)">B</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-lbl">音階の種類 <span id="scaleModeLabel" style="color:var(--blue)">長調</span></div>
+        <div class="chip-row" style="flex-wrap:wrap;gap:5px">
+          <button class="chip on" data-scale-mode="major"        onclick="setScaleMode(this)">長調</button>
+          <button class="chip"    data-scale-mode="minorNatural" onclick="setScaleMode(this)">自然短音階</button>
+          <button class="chip"    data-scale-mode="minorHarmonic" onclick="setScaleMode(this)">和声短音階</button>
+          <button class="chip"    data-scale-mode="minorMelodic" onclick="setScaleMode(this)">旋律的短音階</button>
+          <button class="chip"    data-scale-mode="chromatic"    onclick="setScaleMode(this)">半音階</button>
+        </div>
+      </div>
+
+      <!-- 生成されたスケール表示 -->
+      <div class="card">
+        <div class="card-lbl">生成されたスケール</div>
+        <div id="scaleGeneratedText" class="scale-generated-text">C - D - E - F - G - A - B - C</div>
+        <button class="rec-mode-btn" id="scaleHighlightToggleBtn" onclick="toggleScaleHighlight(this)" style="margin-top:8px">
+          🎹 鍵盤で使用する音を表示: OFF
+        </button>
+        <button class="start-btn" id="scalePracticeToggleBtn" onclick="toggleScalePracticeSession()" style="margin-top:8px">▶ この音階で練習開始</button>
+      </div>
+
+      <!-- 練習中の進行状況 + 進み方トグル -->
+      <div class="card">
+        <div class="card-lbl">練習の進み方</div>
+        <div class="chip-row">
+          <button class="chip on" data-adv-mode="auto"   onclick="setScaleAdvanceMode(this)">自動送り(キープで次へ)</button>
+          <button class="chip"    data-adv-mode="manual" onclick="setScaleAdvanceMode(this)">手動送り</button>
+        </div>
+        <div id="scaleManualNav" style="display:none;gap:8px;margin-top:8px">
+          <button class="pm-btn" style="flex:1" onclick="manualAdvanceScale(-1)">◀ 前へ</button>
+          <button class="pm-btn" style="flex:1" onclick="manualAdvanceScale(1)">次へ ▶</button>
+        </div>
+      </div>
+
+      <div class="card lt-display">
+        <div class="lt-cents" id="scaleLiveNote">－</div>
+        <div class="lt-timer" id="scaleSeqPos">- / -</div>
+        <div class="lt-note" id="scaleTargetNote" style="font-size:40px">－</div>
+        <div class="lt-pct-row">
+          <div class="lt-pct-bar-wrap"><div class="lt-pct-bar" id="scaleKeepBar" style="background:var(--blue)"></div></div>
+        </div>
+      </div>
+
+      <!-- 鍵盤UI: 表示し得る全音域を常に表示(横スクロールで移動)。移調設定に応じてラベルが自動シフト -->
+      <div class="card">
+        <div class="card-lbl">鍵盤(タップでプレビュー再生)</div>
+        <div class="keyboard-ctrl-row">
+          <span style="font-size:12px;color:var(--txt3)">音階の基準オクターブ</span>
+          <span style="flex:1"></span>
+          <button class="pm-btn" onclick="shiftKeyboardOctave(-1)">−</button>
+          <span id="keyboardOctLabel" style="font-size:12px;color:var(--txt2);min-width:24px;text-align:center">4</span>
+          <button class="pm-btn" onclick="shiftKeyboardOctave(1)">+</button>
+        </div>
+        <div id="scaleKeyboard" class="piano-wrap"></div>
+      </div>
+
+      <!-- カスタム音列(併用): タップ作成 / 録音から自動抽出 -->
+      <div class="card">
+        <div class="card-lbl">カスタム音列を作る</div>
+        <div class="chip-row">
+          <button class="rec-mode-btn" id="customTapBuildBtn" onclick="toggleCustomTapBuild(this)">🎹 鍵盤タップで音を追加</button>
+        </div>
+        <div class="chip-row" style="margin-top:6px">
+          <button class="rec-mode-btn" id="customRecordBtn" onclick="toggleCustomRecord()">🎙 録音から抽出開始</button>
+        </div>
+        <div id="customSeqPreview" class="custom-seq-preview">
+          <span class="note-stats-empty">まだ音がありません</span>
+        </div>
+        <div class="chip-row" style="margin-top:8px">
+          <button class="pm-btn" style="flex:1" onclick="undoCustomNote()">1つ戻す</button>
+          <button class="pm-btn" style="flex:1" onclick="clearCustomNoteSeq()">クリア</button>
+        </div>
+        <div class="chip-row" style="margin-top:8px">
+          <button class="rec-mode-btn on" onclick="useCustomSequenceForPractice()">▶ この音列を練習に使う</button>
+        </div>
+        <button class="rec-mode-btn" style="margin-top:6px" onclick="saveCustomScale()">💾 名前をつけて保存</button>
+      </div>
+
+      <!-- 保存済みカスタム音列一覧 -->
+      <div class="card">
+        <div class="card-lbl">保存した音列</div>
+        <div id="customScaleList" class="custom-scale-list">
+          <div class="note-stats-empty">保存された音列はありません</div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /scale panel -->
+
+  <!-- ═══ 課題練習: 公開版では未完成のため「工事中」表示のみ。
+       本体(panel-exercise)は温存してあり、後日ナビゲーションを戻すだけで再開できる ═══ -->
+  <div class="panel" id="panel-exercise-wip">
+    <div class="scale-layout">
+      <button class="lt-back-btn" onclick="showPanel('panel-tuner')">← チューナーに戻る</button>
+      <div class="card" style="text-align:center;padding:40px 20px">
+        <div style="font-size:40px;margin-bottom:12px">🚧</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:8px">工事中</div>
+        <div style="font-size:13px;color:var(--txt2);line-height:1.7">
+          課題練習機能は現在開発中です。<br>公開後、順次アップデートしていく予定です。
+        </div>
+      </div>
+    </div>
+  </div><!-- /exercise wip panel -->
+
+  <!-- ═══ Phase7: 課題(エクササイズ)練習 (未公開・開発継続中) ═══ -->
+  <div class="panel" id="panel-exercise">
+    <div class="scale-layout">
+      <button class="lt-back-btn" onclick="showPanel('panel-tuner')">← チューナーに戻る</button>
+
+      <!-- 調 -->
+      <div class="card">
+        <div class="card-lbl">調</div>
+        <div class="chip-row" style="flex-wrap:wrap;gap:5px">
+          <button class="chip on" data-ex-kind="major"     onclick="setExPrimaryKind(this)">長調</button>
+          <button class="chip"    data-ex-kind="minor"     onclick="setExPrimaryKind(this)">短調</button>
+          <button class="chip"    data-ex-kind="chromatic" onclick="setExPrimaryKind(this)">半音階</button>
+        </div>
+        <div class="chip-row" id="exMinorVariantRow" style="flex-wrap:wrap;gap:5px;margin-top:6px;display:none">
+          <button class="chip on" data-ex-minor="natural"  onclick="setExMinorVariant(this)">自然短音階</button>
+          <button class="chip"    data-ex-minor="harmonic" onclick="setExMinorVariant(this)">和声短音階</button>
+          <button class="chip"    data-ex-minor="melodic"  onclick="setExMinorVariant(this)">旋律的短音階</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-lbl">開始音</div>
+        <div class="tonic-grid" id="exTonicGrid">
+          <button class="chip on" data-ex-tonic-pc="0"  onclick="setExTonic(this)">C</button>
+          <button class="chip"    data-ex-tonic-pc="1"  onclick="setExTonic(this)">C♯</button>
+          <button class="chip"    data-ex-tonic-pc="2"  onclick="setExTonic(this)">D</button>
+          <button class="chip"    data-ex-tonic-pc="3"  onclick="setExTonic(this)">D♯</button>
+          <button class="chip"    data-ex-tonic-pc="4"  onclick="setExTonic(this)">E</button>
+          <button class="chip"    data-ex-tonic-pc="5"  onclick="setExTonic(this)">F</button>
+          <button class="chip"    data-ex-tonic-pc="6"  onclick="setExTonic(this)">F♯</button>
+          <button class="chip"    data-ex-tonic-pc="7"  onclick="setExTonic(this)">G</button>
+          <button class="chip"    data-ex-tonic-pc="8"  onclick="setExTonic(this)">G♯</button>
+          <button class="chip"    data-ex-tonic-pc="9"  onclick="setExTonic(this)">A</button>
+          <button class="chip"    data-ex-tonic-pc="10" onclick="setExTonic(this)">A♯</button>
+          <button class="chip"    data-ex-tonic-pc="11" onclick="setExTonic(this)">B</button>
+        </div>
+      </div>
+
+      <!-- テンポ -->
+      <div class="card">
+        <div class="card-lbl">テンポ</div>
+        <div style="text-align:center;font-size:28px;font-weight:700" id="exBpmNum">120<span style="font-size:13px;color:var(--txt2)"> BPM</span></div>
+        <div class="chip-row" style="margin-top:8px">
+          <button class="pm-btn" style="flex:1" onclick="adjustExBpm(-5)">−5</button>
+          <button class="pm-btn" style="flex:1" onclick="adjustExBpm(-1)">−1</button>
+          <button class="pm-btn" style="flex:1" onclick="adjustExBpm(1)">+1</button>
+          <button class="pm-btn" style="flex:1" onclick="adjustExBpm(5)">+5</button>
+        </div>
+        <button class="rec-mode-btn" style="margin-top:8px" onclick="syncExBpmFromMetronome()">🥁 メトロノームの現在値を使う</button>
+      </div>
+
+      <!-- ピッチ検出の遅延キャリブレーション(課題の実行機能で正確に採点するための事前準備) -->
+      <div class="card">
+        <div class="card-lbl">🎯 ピッチ検出の遅延キャリブレーション</div>
+        <div style="font-size:12px;color:var(--txt2);line-height:1.6;margin-bottom:8px">
+          課題を正確に採点するため、事前に一度計測しておくことをおすすめします。マイクを開始した状態で「計測開始」を押すとクリック音が数回鳴ります。その音に合わせて短く音を出してください(タンギングでの発音がおすすめです)。検出が実際の発音より何ms遅れて認識されるかを測定し、以後の採点で自動補正します。
+        </div>
+        <div id="calibValueDisplay" style="font-size:13px;color:var(--txt2);text-align:center;margin-bottom:8px">現在の補正値: 0ms(未計測)</div>
+        <div class="chip-row">
+          <button class="rec-mode-btn" style="flex:1" onclick="startCalibration()">🎯 計測開始</button>
+          <button class="pm-btn" style="flex:1" onclick="resetCalibration()">リセット</button>
+        </div>
+        <div id="calibStatus" class="ex-count-status" style="margin-top:8px">まだ計測されていません</div>
+      </div>
+
+      <!-- 拍子 -->
+      <div class="card">
+        <div class="card-lbl">拍子</div>
+        <div class="chip-row" id="exTimeSigRow" style="flex-wrap:wrap;gap:5px"></div>
+      </div>
+
+      <!-- リズムパターン -->
+      <div class="card">
+        <div class="card-lbl">リズムパターン(タップで音価を切替、休符も指定可・各コマに📋コピー/📥貼り付けあり)</div>
+        <div class="chip-row" style="flex-wrap:wrap;gap:5px;margin-bottom:8px">
+          <button class="chip" onclick="applyRhythmPreset('even')">均等</button>
+          <button class="chip" onclick="applyRhythmPreset('double')">倍速細分化</button>
+          <button class="chip" onclick="applyRhythmPreset('dotted')">付点+短音</button>
+          <button class="chip" onclick="applyRhythmPreset('swing')">スウィング(付8+16分)</button>
+          <button class="chip" onclick="applyRhythmPreset('syncopation')">シンコペーション</button>
+          <button class="chip" onclick="applyRhythmPreset('tantata')">タンタンタタタン</button>
+          <button class="chip" onclick="applyRhythmPreset('triplet')">3連符</button>
+          <button class="chip" onclick="applyRhythmPreset('restEntry')">休符入り</button>
+          <button class="chip" onclick="applyRhythmPreset('sixteenths')">16分刻み</button>
+          <button class="chip" onclick="applyRhythmPreset('whole')">全音符1つ</button>
+        </div>
+        <div id="exRhythmEditor" class="rhythm-editor"></div>
+        <div class="chip-row" style="margin-top:8px;flex-wrap:wrap;gap:6px">
+          <button class="pm-btn" style="flex:1" onclick="addRhythmCell()">+ コマを追加</button>
+          <button class="pm-btn" style="flex:1" onclick="duplicateRhythmPattern()">🔁 パターンを複製(2倍)</button>
+          <button class="pm-btn" style="flex:1" onclick="pasteRhythmCellAtEnd()">📥 末尾に貼り付け</button>
+          <button class="pm-btn" style="flex:1" onclick="clearRhythmPattern()">クリア</button>
+        </div>
+      </div>
+
+      <!-- 音の配列パターン(調のプールとは独立して手動編集できるが、叩き台として調から自動流し込み可能) -->
+      <div class="card">
+        <div class="card-lbl">音の配列パターン(調から生成される音プールとは独立管理・手動編集自由)</div>
+        <div class="keyboard-ctrl-row">
+          <span style="font-size:12px;color:var(--txt3)">自動生成の基準オクターブ</span>
+          <span style="flex:1"></span>
+          <button class="pm-btn" onclick="adjustExBaseOct(-1)">−</button>
+          <span id="exBaseOctLabel" style="font-size:12px;color:var(--txt2);min-width:24px;text-align:center">4</span>
+          <button class="pm-btn" onclick="adjustExBaseOct(1)">+</button>
+        </div>
+        <button class="rec-mode-btn" style="margin-bottom:8px" onclick="autoFillExNoteSeqFromKey()">🎵 現在の調から音列を自動生成(上行+下行)</button>
+        <div class="chip-row">
+          <button class="rec-mode-btn" id="exTapBuildBtn" onclick="toggleExTapBuild(this)">🎹 鍵盤タップで音を追加</button>
+        </div>
+        <div id="exNoteSeqPreview" class="custom-seq-preview">
+          <span class="note-stats-empty">まだ音がありません</span>
+        </div>
+        <div class="chip-row" style="margin-top:8px">
+          <button class="pm-btn" style="flex:1" onclick="undoExNote()">1つ戻す</button>
+          <button class="pm-btn" style="flex:1" onclick="clearExNoteSeq()">クリア</button>
+        </div>
+        <div id="exKeyboard" class="piano-wrap" style="margin-top:8px"></div>
+      </div>
+
+      <!-- 保存前チェック + 保存 -->
+      <div class="card">
+        <div class="card-lbl">保存前チェック</div>
+        <div id="exCountStatus" class="ex-count-status">リズムのコマ数(休符除く): 0 / 音の数: 0</div>
+        <input type="text" id="exNameInput" class="ex-name-input" placeholder="課題名を入力" style="margin-top:8px">
+        <button class="rec-mode-btn on" style="margin-top:8px" onclick="saveExercise()">💾 この課題を保存</button>
+      </div>
+
+      <!-- 保存済み課題一覧 -->
+      <div class="card">
+        <div class="card-lbl">保存した課題</div>
+        <div id="exerciseList" class="custom-scale-list">
+          <div class="note-stats-empty">保存された課題はありません</div>
+        </div>
+      </div>
+
+      <!-- 課題の実行(現在編集中の内容で実行。カウントイン後、ピッチとリズムのタイミングを記録する) -->
+      <div class="card">
+        <div class="card-lbl">▶ 課題を実行</div>
+        <div style="font-size:12px;color:var(--txt2);line-height:1.6;margin-bottom:8px">
+          現在編集中(または読み込み済み)の調・テンポ・リズム・音の配列で実行します。マイクを開始した状態で押すと、拍子ぶんのカウントインの後に演奏が始まります。クリック音はカウントインだけでなく演奏中も鳴り続けるので、最後までテンポの目安にできます。ピッチの正確さとリズムのタイミングのズレ(キャリブレーション補正済み)を記録し、終了後にレビュー画面を表示します。
+        </div>
+        <div id="exExecStatus" class="ex-count-status">待機中</div>
+        <div id="exExecLiveRow" class="ex-exec-live-row" style="display:none">
+          <span id="exExecLiveIdx">- / -</span>
+          <span id="exExecLiveNote">-</span>
+        </div>
+        <div class="chip-row" style="margin-top:8px">
+          <button class="start-btn" id="exExecStartBtn" style="flex:1" onclick="startExerciseExecution()">▶ カウントインして開始</button>
+          <button class="pm-btn" id="exExecCancelBtn" style="flex:1;display:none" onclick="cancelExerciseExecution()">■ 中断</button>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /exercise panel -->
+
 </div><!-- /outer -->
+
+<!-- ═══ 録音プレビューモーダル ═══ -->
+<div class="rec-modal" id="recModal" style="display:none">
+  <div class="rec-modal-inner">
+    <div class="rec-modal-title">録音プレビュー</div>
+
+    <!-- 音声のみモード: 波形グラフ + オーディオ -->
+    <div id="recAudioPreview">
+      <div class="rec-graph-wrap">
+        <canvas id="recCanvas"></canvas>
+      </div>
+      <div class="rec-controls">
+        <button class="rec-play-btn" id="recPlayBtn" onclick="toggleRecPlayback()">▶ 再生</button>
+        <span class="rec-time" id="recTimeLabel">0:00 / 0:00</span>
+      </div>
+      <audio id="recAudioEl" style="display:none"></audio>
+    </div>
+
+    <!-- 動画モード: 波形は映像に焼き込み済みなのでvideoタグのみ -->
+    <video id="recVideoEl" style="display:none" playsinline controls></video>
+
+    <div class="rec-action-row">
+      <button class="rec-discard-btn" onclick="discardRecording()">🗑 破棄</button>
+      <button class="rec-save-btn" onclick="confirmSaveRecording()">💾 端末に保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 苦手な音リスト モーダル(Phase3): タップした時だけ別画面として開く ═══ -->
+<div class="rec-modal" id="noteStatsModal" style="display:none" onclick="if(event.target===this) closeNoteStatsModal()">
+  <div class="rec-modal-inner note-stats-modal-inner">
+    <div class="note-stats-modal-hdr">
+      <div class="rec-modal-title">苦手な音リスト</div>
+      <button class="note-stats-close-btn" onclick="closeNoteStatsModal()" title="閉じる">✕</button>
+    </div>
+    <div class="chip-row" style="margin-bottom:2px">
+      <button class="chip on" data-stat-filter="all"      onclick="setStatFilter(this)">全体</button>
+      <button class="chip"    data-stat-filter="longtone" onclick="setStatFilter(this)">ロングトーンのみ</button>
+      <button class="chip"    data-stat-filter="scale"    onclick="setStatFilter(this)">スケールのみ</button>
+      <button class="chip"    data-stat-filter="exercise" onclick="setStatFilter(this)">課題のみ</button>
+    </div>
+    <div id="noteStatsList" class="note-stats-list note-stats-list-modal">
+      <div class="note-stats-empty">まだデータがありません</div>
+    </div>
+    <button class="rec-mode-btn" id="resetStatsBtn" onclick="resetNoteStats()"
+            style="color:var(--red);border-color:var(--red)">苦手な音リストをリセット</button>
+  </div>
+</div>
+
+<!-- ═══ Phase7: 課題レビュー モーダル(実行1回ごとの結果。統計は蓄積しない) ═══ -->
+<div class="rec-modal" id="exerciseReviewModal" style="display:none" onclick="if(event.target===this) closeExerciseReview()">
+  <div class="rec-modal-inner note-stats-modal-inner">
+    <div class="note-stats-modal-hdr">
+      <div class="rec-modal-title">課題レビュー</div>
+      <button class="note-stats-close-btn" onclick="closeExerciseReview()" title="閉じる">✕</button>
+    </div>
+    <div id="exReviewSummary" class="ex-count-status" style="margin-bottom:8px">-</div>
+    <div class="ex-review-legend">
+      <span><span class="ex-review-dot" style="background:var(--green)"></span>正確(±50ms以内)</span>
+      <span><span class="ex-review-dot" style="background:var(--yel)"></span>ややズレ(±150ms以内)</span>
+      <span><span class="ex-review-dot" style="background:var(--red)"></span>大きくズレ/音程違い/未検出</span>
+    </div>
+    <div class="ex-review-canvas-wrap">
+      <canvas id="exReviewCanvas"></canvas>
+    </div>
+    <div id="exReviewList" class="ex-review-list"></div>
+  </div>
+</div>
 
 <script>
 // ══════════════════════════════════════
@@ -694,15 +1545,135 @@ input[type=range]::-webkit-slider-thumb{
 let a4 = 442, semis = 0;
 let isRunning = false;
 let audioCtx, analyser, micSrc, micStream, rafId;
+let gainNode, micGain = 1.0;
 
-// 横軸スケール: 内部バッファは最大サイズ、VIEWで表示幅を切り替え
-const HIST_MAX = 1200;   // 内部バッファ（約20秒分 @60fps）
+// ── 録音関連 ──
+let mediaRecorder=null, recordedChunks=[], isRecording=false;
+let streamDest=null, recMimeType='audio/webm';
+let recPitchHistory=[];      // {time, cents} 録音開始からの経過秒とセント値
+let recordingStartTime=0, lastRecPushTime=0, recTimerId=null;
+let previewBlob=null, previewURL=null;
+let recordVideoMode=false, lastRecordWasVideo=false;
+const MAX_REC_SECONDS=300;   // 押し忘れ対策の安全装置(UIには出さない)
+
+// 横軸スケール: VIEWで表示幅（サンプル数）を切り替え
 let VIEW = 300;          // 現在表示するサンプル数（横軸縮尺）
-const history = new Array(HIST_MAX).fill(null);
+
+// ══════════════════════════════════════
+//  HISTORY (拡張履歴データ) — Phase 1
+//  { time, cents, freq, note, ampDb } のリングバッファ。
+//  time: タイムライン上の経過秒(audioCtx.currentTime基準 + timelineBaseSec、下記参照)
+//  note: オクターブ込みの音名(例: "E4"、シャープ表記は "F#4")
+//  保持範囲: 直近 HISTORY_RETENTION_SEC 秒のみ。長時間集計はPhase 3で別途保持する。
+// ══════════════════════════════════════
+const HISTORY_RETENTION_SEC = 300; // 直近5分間のみ保持
+let historyExt = [];    // [{time, cents, freq, note, ampDb}, ...] 時系列順
+let sessionStartTime = 0;
+// 停止→再開してもグラフの波形を消さずに続けられるようにするための、セッションをまたいだ
+// タイムラインの基準値。audioCtx は停止のたびに作り直す(currentTimeが0に戻る)ため、
+// 停止時にその時点までの経過秒をここに積み上げておき、再開後は続きから時刻が増えていく
+// ようにする。「波形をクリア」ボタンを押したときは0に戻す。
+let timelineBaseSec = 0;
+let lastAmpDb = -Infinity; // updateMicMeter()で更新される最新dBFS
+
+function pushHistoryExt(entry){
+  historyExt.push(entry);
+  // 保持範囲を超えた古いものを先頭から間引く(通常は数件のみなので軽量)
+  const cutoff = entry.time - HISTORY_RETENTION_SEC;
+  let dropCount = 0;
+  while(dropCount < historyExt.length && historyExt[dropCount].time < cutoff) dropCount++;
+  if(dropCount > 0) historyExt.splice(0, dropCount);
+}
+
+function clearHistoryExt(){
+  historyExt = [];
+  scrollToLive(); // 遡り状態も一緒にリセット(開始/停止のたびにライブ表示へ)
+}
+
+// ══════════════════════════════════════
+//  Phase2: 波形メーター遡り（過去スクロール）
+//  scrollIndexOffset: 0=最新(ライブ追従)。>0で過去にNサンプル分遡った状態。
+// ══════════════════════════════════════
+let scrollIndexOffset = 0;
+
+// 現在の表示範囲(scrollIndexOffset反映後)をhistoryExtから切り出す
+function getVisibleHistorySlice(){
+  const n = historyExt.length;
+  const endIdx   = Math.max(0, n - scrollIndexOffset);   // 表示範囲の終端(exclusive)
+  const startIdx = Math.max(0, endIdx - VIEW);
+  return { startIdx, endIdx, entries: historyExt.slice(startIdx, endIdx) };
+}
+
+// drawGraph用: 表示範囲からcentsだけを取り出す(足りない分は先頭をnull埋め)
+// → 表示ロジックは旧`history`配列(固定長・信号なし時は無更新で静止)と同一の見た目を維持
+function visibleCentsFromHistory(){
+  const arr = new Array(VIEW).fill(null);
+  const { entries } = getVisibleHistorySlice();
+  const padCount = VIEW - entries.length;
+  for(let i = 0; i < entries.length; i++){
+    arr[padCount + i] = entries[i].cents;
+  }
+  return arr;
+}
+
+// scrollIndexOffsetを範囲内にクランプして反映し、UI状態を更新する
+function setScrollOffset(v){
+  const maxOffset = Math.max(0, historyExt.length - 1);
+  scrollIndexOffset = Math.max(0, Math.min(maxOffset, Math.round(v)));
+  const backBtn = document.getElementById('backToLiveBtn');
+  if(backBtn) backBtn.style.display = scrollIndexOffset > 0 ? 'flex' : 'none';
+  if(graphWrap) graphWrap.classList.toggle('scroll-mode', scrollIndexOffset > 0);
+  drawGraph();
+}
+
+// 「最新へ戻る」ボタン / プログラムからのリセット
+function scrollToLive(){
+  scrollIndexOffset = 0;
+  const backBtn = document.getElementById('backToLiveBtn');
+  if(backBtn) backBtn.style.display = 'none';
+  if(graphWrap) graphWrap.classList.remove('scroll-mode');
+  hideSwipeBadge();
+  drawGraph();
+}
+
+// 画面上のX座標(clientX)から、現在の表示範囲内で最も近い履歴エントリを求める
+function historyEntryAtScreenX(clientX){
+  const { entries } = getVisibleHistorySlice();
+  if(entries.length === 0) return null;
+  const rect = cv.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const pxPerSample = CW / VIEW;
+  const padCount = VIEW - entries.length; // 左側の空白サンプル数
+  let idx = Math.round(x / pxPerSample) - padCount;
+  idx = Math.max(0, Math.min(entries.length - 1, idx));
+  return entries[idx];
+}
+
+function formatNoteForBadge(note){
+  return note ? note.replace('#','♯') : '';
+}
+
+function showSwipeBadge(clientX, clientY, text){
+  const badge = document.getElementById('swipeBadge');
+  if(!badge) return;
+  const wrapRect = graphWrap.getBoundingClientRect();
+  const x = Math.max(24, Math.min(wrapRect.width - 24, clientX - wrapRect.left));
+  const y = Math.max(30, clientY - wrapRect.top - 36);
+  badge.style.left = x + 'px';
+  badge.style.top  = y + 'px';
+  badge.textContent = text;
+  badge.style.display = 'block';
+}
+
+function hideSwipeBadge(){
+  const badge = document.getElementById('swipeBadge');
+  if(badge) badge.style.display = 'none';
+}
 
 let noSigFrames = 0;
 let freqBuf     = [];
 let inTuneFlag  = false;
+let mainLoopPrevHasSignal = false; // 遡り中に新しい発音があったら自動でライブへ戻すための直前フレーム状態
 
 let CR          = 50;
 let freqBufMax  = 4;
@@ -727,6 +1698,1842 @@ function centsDiff(f1, f2){
   if(!f1||!f2||f1<=0||f2<=0) return 9999;
   return Math.abs(1200*Math.log2(f1/f2));
 }
+
+// ══════════════════════════════════════
+//  Phase5: スケールモード — 音階自動生成エンジン
+//  ・五度圏の規則をテーブル化(MAJOR_KEY_TABLE / MINOR_KEY_TABLE)し、
+//    そこから「7つのアルファベットを1回ずつ使う」原則で7音をプログラム的に自動導出する。
+//  ・pcはこのアプリの「書き譜(ni)」空間の値。既存のsemis(移調)を反映したinfo.niと
+//    そのまま比較できるため、鍵盤の「ド」位置やラベルは移調設定に応じて自動的に正しくなる。
+// ══════════════════════════════════════
+const LETTER_CYCLE = ['C','D','E','F','G','A','B'];
+const LETTER_NATURAL_PC = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+
+// 五度圏テーブル: pc(0-11) -> 主音の(文字, 変化記号)。長調12種
+const MAJOR_KEY_TABLE = {
+  0:{letter:'C',acc:0},  1:{letter:'D',acc:-1}, 2:{letter:'D',acc:0},  3:{letter:'E',acc:-1},
+  4:{letter:'E',acc:0},  5:{letter:'F',acc:0},  6:{letter:'F',acc:1},  7:{letter:'G',acc:0},
+  8:{letter:'A',acc:-1}, 9:{letter:'A',acc:0},  10:{letter:'B',acc:-1},11:{letter:'B',acc:0}
+};
+// 五度圏テーブル: pc(0-11) -> 主音の(文字, 変化記号)。短調12種(自然短音階の主音表記を基準)
+const MINOR_KEY_TABLE = {
+  0:{letter:'C',acc:0}, 1:{letter:'C',acc:1}, 2:{letter:'D',acc:0}, 3:{letter:'D',acc:1},
+  4:{letter:'E',acc:0}, 5:{letter:'F',acc:0}, 6:{letter:'F',acc:1}, 7:{letter:'G',acc:0},
+  8:{letter:'G',acc:1}, 9:{letter:'A',acc:0}, 10:{letter:'B',acc:-1},11:{letter:'B',acc:0}
+};
+
+const SCALE_STEP_PATTERNS = {
+  major:           [2,2,1,2,2,2,1],
+  minorNatural:    [2,1,2,2,1,2,2],
+  minorHarmonic:   [2,1,2,2,1,3,1],
+  minorMelodicAsc: [2,1,2,2,2,2,1],
+};
+
+const SCALE_MODE_LABELS = {
+  major:'長調', minorNatural:'自然短音階', minorHarmonic:'和声短音階',
+  minorMelodic:'旋律的短音階', chromatic:'半音階'
+};
+
+// 変化記号の表示文字列(ダブルシャープ/ダブルフラットも同一ロジックで対応)
+function accSymbol(n){
+  if(n===0) return '';
+  if(n===1) return '♯';
+  if(n===2) return '♯♯';
+  if(n===-1) return '♭';
+  if(n===-2) return '♭♭';
+  return (n>0?'♯':'♭').repeat(Math.abs(n)); // 通常はここまで来ない想定のフォールバック
+}
+
+// tonicPc(0-11) + 主音の文字 + 音程パターン(7要素・合計12半音)から、
+// 「7文字を1回ずつ使う」規則で各度数の(文字,変化記号,pc,主音からの半音オフセット)を自動導出する
+function generateDiatonicDegrees(tonicPc, tonicLetter, pattern){
+  const startIdx = LETTER_CYCLE.indexOf(tonicLetter);
+  let pc = tonicPc;
+  const degrees = [];
+  for(let i=0;i<7;i++){
+    const letter = LETTER_CYCLE[(startIdx+i)%7];
+    const nat = LETTER_NATURAL_PC[letter];
+    let diff = ((pc - nat) % 12 + 12) % 12;
+    if(diff>6) diff -= 12; // -6〜6に正規化(正しく構成された音階では実質-2〜2)
+    degrees.push({ letter, acc:diff, pc:((pc%12)+12)%12, absOffset: pc-tonicPc });
+    pc += pattern[i];
+  }
+  return degrees;
+}
+
+function degreeLabel(d){ return d.letter + accSymbol(d.acc); }
+
+// 度数配列(絶対オフセット付き)+ 基準オクターブ から、実際のオクターブ番号付き音符列を作る
+function degreesToNoteSeq(degrees, baseOct, includeOctaveTonic){
+  return degrees.map(d=>{
+    const tonicPcForOct = degrees[0].pc;
+    const oct = baseOct + Math.floor((tonicPcForOct + d.absOffset)/12);
+    return { ni:d.pc, oct, label:degreeLabel(d) };
+  }).concat(includeOctaveTonic ? [{
+    ni:degrees[0].pc,
+    oct: baseOct + Math.floor((degrees[0].pc + 12)/12),
+    label:degreeLabel(degrees[0])
+  }] : []);
+}
+
+// modeKey: 'major' | 'minorNatural' | 'minorHarmonic' | 'minorMelodic' | 'chromatic'
+// 戻り値: { ascending:[{ni,oct,label}], descending:[{ni,oct,label}] }  (オクターブ上の主音を含む)
+function generateScale(tonicPc, modeKey, baseOct){
+  if(modeKey==='chromatic'){
+    const ascending=[], descending=[];
+    for(let i=0;i<=12;i++){
+      const ni=(tonicPc+i)%12;
+      const oct=baseOct+Math.floor((tonicPc+i)/12);
+      ascending.push({ni, oct, label:NOTES_SHARP[ni]});
+    }
+    for(let i=12;i>=0;i--){
+      const ni=(tonicPc+i)%12;
+      const oct=baseOct+Math.floor((tonicPc+i)/12);
+      descending.push({ni, oct, label:NOTES_FLAT[ni]});
+    }
+    return {ascending, descending};
+  }
+
+  let tonicInfo, pattern;
+  if(modeKey==='major'){
+    tonicInfo=MAJOR_KEY_TABLE[tonicPc]; pattern=SCALE_STEP_PATTERNS.major;
+  }else{
+    tonicInfo=MINOR_KEY_TABLE[tonicPc];
+    pattern = modeKey==='minorHarmonic' ? SCALE_STEP_PATTERNS.minorHarmonic
+            : modeKey==='minorMelodic'  ? SCALE_STEP_PATTERNS.minorMelodicAsc
+            : SCALE_STEP_PATTERNS.minorNatural;
+  }
+  const degrees = generateDiatonicDegrees(tonicPc, tonicInfo.letter, pattern);
+  const ascending = degreesToNoteSeq(degrees, baseOct, true);
+
+  let descending;
+  if(modeKey==='minorMelodic'){
+    // 下行形は伝統的に自然短音階(6・7度を下げる)を用いる
+    const natDegrees = generateDiatonicDegrees(tonicPc, tonicInfo.letter, SCALE_STEP_PATTERNS.minorNatural);
+    const natAsc = degreesToNoteSeq(natDegrees, baseOct, true);
+    descending = natAsc.slice().reverse();
+  }else{
+    descending = ascending.slice().reverse();
+  }
+  return {ascending, descending};
+}
+
+// 調ピッカーボタン用: モードに応じた主音の正しい表記を返す(移調楽器の書き譜ni空間で判定)
+function tonicLabelFor(pc, modeKey){
+  if(modeKey==='chromatic') return NOTES_SHARP[pc];
+  const table = modeKey==='major' ? MAJOR_KEY_TABLE : MINOR_KEY_TABLE;
+  const t = table[pc];
+  return t.letter + accSymbol(t.acc);
+}
+
+// ══════════════════════════════════════
+//  Phase3: 苦手な音リスト（音名ごとの集計値 + IndexedDB永続化）
+//  ・生データは持たず、都度更新するだけの軽量な集計値のみ保持
+//  ・practiceMode('longtone'|'scale')の間だけ記録。通常のチューナー画面(null)では記録しない
+//  ・安定感の判定閾値は既存の「音程が合っている」判定(±10¢)を流用
+//  ・安定感軸は生のセント値で判定(Phase8のビブラート対応で移動平均に差し替え予定)
+// ══════════════════════════════════════
+const IN_TUNE_CENTS = 10; // 既存の「音程が合っている」判定閾値(updateNoteUIのa<10と同じ値)を流用
+
+let practiceMode = null;      // null=通常(記録なし) | 'longtone' | 'scale'
+let statFilter   = 'all';     // 表示フィルター: 'all' | 'longtone' | 'scale'
+let currentSessionId = null;  // startTuner()ごとに発行。Phase2遡りジャンプの可否判定に使用
+let noteStats = {};           // key: `${mode}::${note}` -> 集計レコード
+
+const NOTE_STATS_DB_NAME    = 'tunerNoteStatsDB';
+const NOTE_STATS_DB_VERSION = 4; // v2: Phase4でlongtoneBests追加 / v3: Phase5でcustomScales追加 / v4: Phase7でexercises追加
+const NOTE_STATS_STORE      = 'noteStats';
+const LONGTONE_BEST_STORE   = 'longtoneBests'; // Phase4: ロングトーン自己ベスト
+const CUSTOM_SCALES_STORE   = 'customScales';  // Phase5: カスタム音列(名前をつけて保存)
+const EXERCISE_STORE        = 'exercises';     // Phase7: 課題(調+テンポ+リズム+音配列)
+let noteStatsDB = null;
+let dirtyStatKeys = new Set();
+let statsFlushTimer = null;
+
+function openNoteStatsDB(){
+  return new Promise((resolve, reject)=>{
+    if(!('indexedDB' in window)){ reject(new Error('IndexedDB unsupported')); return; }
+    const req = indexedDB.open(NOTE_STATS_DB_NAME, NOTE_STATS_DB_VERSION);
+    req.onupgradeneeded = ()=>{
+      const db = req.result;
+      if(!db.objectStoreNames.contains(NOTE_STATS_STORE)){
+        db.createObjectStore(NOTE_STATS_STORE, {keyPath:'key'});
+      }
+      if(!db.objectStoreNames.contains(LONGTONE_BEST_STORE)){
+        db.createObjectStore(LONGTONE_BEST_STORE, {keyPath:'key'});
+      }
+      if(!db.objectStoreNames.contains(CUSTOM_SCALES_STORE)){
+        db.createObjectStore(CUSTOM_SCALES_STORE, {keyPath:'id'});
+      }
+      if(!db.objectStoreNames.contains(EXERCISE_STORE)){
+        db.createObjectStore(EXERCISE_STORE, {keyPath:'id'});
+      }
+    };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror   = ()=> reject(req.error);
+  });
+}
+
+function loadAllNoteStats(){
+  return new Promise((resolve)=>{
+    if(!noteStatsDB){ resolve(); return; }
+    const tx    = noteStatsDB.transaction(NOTE_STATS_STORE, 'readonly');
+    const store = tx.objectStore(NOTE_STATS_STORE);
+    const req   = store.getAll();
+    req.onsuccess = ()=>{
+      noteStats = {};
+      (req.result||[]).forEach(row=>{ noteStats[row.key] = row; });
+      renderNoteStatsList();
+      resolve();
+    };
+    req.onerror = ()=> resolve();
+  });
+}
+
+function scheduleStatsFlush(){
+  if(statsFlushTimer) return;
+  statsFlushTimer = setTimeout(flushDirtyStats, 1000);
+}
+
+function flushDirtyStats(){
+  statsFlushTimer = null;
+  renderNoteStatsList();
+  if(!noteStatsDB || dirtyStatKeys.size===0) return;
+  const keys = [...dirtyStatKeys];
+  dirtyStatKeys.clear();
+  try{
+    const tx    = noteStatsDB.transaction(NOTE_STATS_STORE, 'readwrite');
+    const store = tx.objectStore(NOTE_STATS_STORE);
+    keys.forEach(k=>{ if(noteStats[k]) store.put(noteStats[k]); });
+  }catch(e){ console.warn('noteStats flush failed', e); }
+}
+
+// 音名ごと・モードごとに「傾向/正確さ/安定感」の集計値を都度更新するだけで持つ(生データは保持しない)
+function recordNoteStat(mode, note, cents, timeSec, sessionId){
+  if(!mode) return; // 練習モード外(通常のチューナー画面)では記録しない
+  const key = mode+'::'+note;
+  let s = noteStats[key];
+  if(!s){
+    s = noteStats[key] = {
+      key, mode, note,
+      count:0, sumCents:0, sumAbsCents:0, inRangeCount:0,
+      worstAbsCents:-1, worstCents:0, worstTime:0, worstSessionId:null
+    };
+  }
+  s.count++;
+  s.sumCents += cents;
+  const absC = Math.abs(cents);
+  s.sumAbsCents += absC;
+  if(absC < IN_TUNE_CENTS) s.inRangeCount++;
+  if(absC >= s.worstAbsCents){
+    s.worstAbsCents = absC;
+    s.worstCents = cents;
+    s.worstTime = timeSec;
+    s.worstSessionId = sessionId;
+  }
+  dirtyStatKeys.add(key);
+  scheduleStatsFlush();
+}
+
+// フィルターに応じてnoteごとに集計をマージする('all'はlongtone+scaleを合算)
+function getStatsForFilter(filter){
+  const perNote = {};
+  Object.values(noteStats).forEach(s=>{
+    if(filter!=='all' && s.mode!==filter) return;
+    let m = perNote[s.note];
+    if(!m){
+      m = perNote[s.note] = {
+        note:s.note, count:0, sumCents:0, sumAbsCents:0, inRangeCount:0,
+        worstAbsCents:-1, worstCents:0, worstTime:0, worstSessionId:null, worstMode:null
+      };
+    }
+    m.count        += s.count;
+    m.sumCents     += s.sumCents;
+    m.sumAbsCents  += s.sumAbsCents;
+    m.inRangeCount += s.inRangeCount;
+    if(s.worstAbsCents > m.worstAbsCents){
+      m.worstAbsCents  = s.worstAbsCents;
+      m.worstCents     = s.worstCents;
+      m.worstTime      = s.worstTime;
+      m.worstSessionId = s.worstSessionId;
+      m.worstMode      = s.mode;
+    }
+  });
+  return Object.values(perNote).filter(m=>m.count>0);
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function setPracticeMode(btn, mode){
+  practiceMode = mode;
+  btn.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function setStatFilter(btn){
+  statFilter = btn.dataset.statFilter;
+  btn.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  btn.classList.add('on');
+  renderNoteStatsList();
+}
+
+function renderNoteStatsList(){
+  const listEl = document.getElementById('noteStatsList');
+  if(!listEl) return;
+  const stats = getStatsForFilter(statFilter);
+  if(stats.length===0){
+    listEl.innerHTML = '<div class="note-stats-empty">まだデータがありません</div>';
+    return;
+  }
+  // 正確さ(平均|セント|)が悪い(=大きい)順に並べる → 苦手な音が上に来る
+  stats.sort((a,b)=> (b.sumAbsCents/b.count) - (a.sumAbsCents/a.count));
+
+  listEl.innerHTML = stats.map((s,i)=>{
+    const meanOffset   = s.sumCents/s.count;
+    const meanAbs      = s.sumAbsCents/s.count;
+    const stabilityPct = s.inRangeCount/s.count*100;
+    let tendencyCls='flat', tendencyTxt='安定';
+    if(Math.abs(meanOffset) >= IN_TUNE_CENTS){
+      if(meanOffset>0){ tendencyCls='high'; tendencyTxt='高め'; }
+      else{ tendencyCls='low'; tendencyTxt='低め'; }
+    }
+    return `<div class="note-stat-row" data-idx="${i}">
+      <span class="note-stat-note">${escapeHtml(s.note)}</span>
+      <span class="note-stat-tendency ${tendencyCls}">${tendencyTxt}</span>
+      <span class="note-stat-metrics">正確さ ${meanAbs.toFixed(1)}¢ ・ 安定 ${stabilityPct.toFixed(0)}%</span>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.note-stat-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const idx = parseInt(row.dataset.idx,10);
+      jumpToWorstMoment(stats[idx]);
+    });
+  });
+}
+
+// 代表的な瞬間(最もズレが大きかった回)にPhase2の遡り機能でジャンプする
+// 保持しているのは集計値のみで生データはないため、ジャンプできるのは
+// 「現在のセッション」かつ「historyExtがまだその時刻を保持している」場合のみ
+function jumpToWorstMoment(stat){
+  if(!isRunning || !stat || stat.worstSessionId==null || stat.worstSessionId!==currentSessionId || historyExt.length===0){
+    toast('この瞬間の波形はもう遡れません(現在のセッション内のみ対応)');
+    return;
+  }
+  let bestIdx=-1, bestDiff=Infinity;
+  for(let i=0;i<historyExt.length;i++){
+    const d=Math.abs(historyExt[i].time - stat.worstTime);
+    if(d<bestDiff){ bestDiff=d; bestIdx=i; }
+  }
+  if(bestIdx<0){ toast('見つかりませんでした'); return; }
+  setScrollOffset(historyExt.length - 1 - bestIdx);
+  closeNoteStatsModal(); // ジャンプ後はグラフ画面に戻す
+}
+
+// モーダルを開く/閉じる(タップした時だけ「苦手な音リスト」を別画面として表示)
+function openNoteStatsModal(){
+  renderNoteStatsList();
+  document.getElementById('noteStatsModal').style.display='flex';
+}
+function closeNoteStatsModal(){
+  document.getElementById('noteStatsModal').style.display='none';
+}
+
+async function resetNoteStats(){
+  if(!confirm('苦手な音リストをリセットします。この操作は元に戻せません。よろしいですか？')) return;
+  noteStats = {};
+  dirtyStatKeys.clear();
+  if(noteStatsDB){
+    try{
+      const tx = noteStatsDB.transaction(NOTE_STATS_STORE, 'readwrite');
+      tx.objectStore(NOTE_STATS_STORE).clear();
+    }catch(e){ console.warn('noteStats clear failed', e); }
+  }
+  renderNoteStatsList();
+}
+
+// 簡易トースト通知(ジャンプ不可時などの案内表示)
+function toast(msg){
+  let el = document.getElementById('tunerToast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'tunerToast';
+    el.className = 'tuner-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>{ el.classList.remove('show'); }, 1800);
+}
+
+// ══════════════════════════════════════
+//  Phase4: ロングトーン練習モード（別画面）
+//  ・判定方式: 割合(%)判定 — 目標のキープ時間のうち、範囲内(±IN_TUNE_CENTS)だった割合
+//    (Phase3の「安定感」= inRangeCount/count と同じロジックを、1回のアテンプト単位で流用)
+//  ・キープ時間のタイマー表示 + 自己ベスト(達成率)をIndexedDBに永続化
+// ══════════════════════════════════════
+const LONGTONE_DURATIONS = [5,10,20,30]; // 選択可能なキープ目標時間(秒)
+let longtoneDuration       = 10;   // 現在選択中の目標時間(秒)
+let longtoneAttemptActive  = false;
+let longtoneAttemptStartT  = 0;    // audioCtx.currentTime基準
+let longtoneInRangeFrames  = 0;
+let longtoneTotalFrames    = 0;
+let practiceModeBeforeLongtone = null; // アテンプト開始前のpracticeModeを退避(終了後に復元)
+let longtoneBests = {}; // key: String(durationSec) -> {key,duration,bestPct,achievedAt}
+
+function loadLongtoneBests(){
+  return new Promise((resolve)=>{
+    if(!noteStatsDB){ resolve(); return; }
+    const tx  = noteStatsDB.transaction(LONGTONE_BEST_STORE, 'readonly');
+    const req = tx.objectStore(LONGTONE_BEST_STORE).getAll();
+    req.onsuccess = ()=>{
+      longtoneBests = {};
+      (req.result||[]).forEach(row=>{ longtoneBests[row.key] = row; });
+      renderLongtoneBestDisplay();
+      resolve();
+    };
+    req.onerror = ()=> resolve();
+  });
+}
+
+// 新記録なら保存してtrueを返す
+function saveLongtoneBestIfNeeded(durationSec, pct){
+  const key  = String(durationSec);
+  const prev = longtoneBests[key];
+  const isNewBest = !prev || pct > prev.bestPct;
+  if(isNewBest){
+    longtoneBests[key] = {key, duration:durationSec, bestPct:pct, achievedAt:Date.now()};
+    if(noteStatsDB){
+      try{
+        const tx = noteStatsDB.transaction(LONGTONE_BEST_STORE, 'readwrite');
+        tx.objectStore(LONGTONE_BEST_STORE).put(longtoneBests[key]);
+      }catch(e){ console.warn('longtone best save failed', e); }
+    }
+  }
+  return isNewBest;
+}
+
+function setLongtoneDuration(btn){
+  if(longtoneAttemptActive) return; // アテンプト中は変更不可
+  longtoneDuration = parseInt(btn.dataset.ltDur,10);
+  btn.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  btn.classList.add('on');
+  updateLongtoneTimerUI(0);
+  renderLongtoneBestDisplay();
+}
+
+// 練習モードchip(通常/ロングトーン/スケール)のON表示を、現在のpracticeModeに同期させる
+function syncPracticeModeChipUI(){
+  document.querySelectorAll('[data-practice]').forEach(btn=>{
+    const raw = btn.getAttribute('data-practice');
+    const val = raw==='' ? null : raw;
+    btn.classList.toggle('on', val===practiceMode);
+  });
+}
+
+function toggleLongtoneAttempt(){
+  if(!isRunning){ toast('先にマイクを開始してください'); return; }
+  longtoneAttemptActive ? cancelLongtoneAttempt() : startLongtoneAttempt();
+}
+
+function startLongtoneAttempt(){
+  longtoneAttemptActive = true;
+  longtoneAttemptStartT = audioCtx.currentTime;
+  longtoneInRangeFrames = 0;
+  longtoneTotalFrames   = 0;
+  practiceModeBeforeLongtone = practiceMode;
+  practiceMode = 'longtone'; // Phase3の「苦手な音リスト」にもこのアテンプトの点を反映させる
+  syncPracticeModeChipUI();
+  const resultEl=document.getElementById('ltResult');
+  if(resultEl) resultEl.style.display='none';
+  updateLongtoneTimerUI(0);
+  updateLongtoneStartStopBtn();
+}
+
+// 毎フレーム呼び出し: 割合(%)判定用のフレームを積み上げ、目標時間に達したら自動終了
+function tickLongtoneAttempt(cents, hasSignal){
+  longtoneTotalFrames++;
+  if(hasSignal && Math.abs(cents) < IN_TUNE_CENTS) longtoneInRangeFrames++;
+  const elapsed = audioCtx.currentTime - longtoneAttemptStartT;
+  updateLongtoneTimerUI(Math.min(elapsed, longtoneDuration));
+  if(elapsed >= longtoneDuration) finishLongtoneAttempt();
+}
+
+// 目標時間まで完走 → 結果を確定し、自己ベストを判定・保存
+function finishLongtoneAttempt(){
+  if(!longtoneAttemptActive) return;
+  longtoneAttemptActive=false;
+  const pct = longtoneTotalFrames>0 ? (longtoneInRangeFrames/longtoneTotalFrames*100) : 0;
+  const isNewBest = saveLongtoneBestIfNeeded(longtoneDuration, pct);
+  showLongtoneResult(pct, isNewBest, false);
+  renderLongtoneBestDisplay();
+  restorePracticeModeAfterLongtone();
+  updateLongtoneStartStopBtn();
+}
+
+// 目標時間に達する前にユーザーが中断 → 未完了として自己ベストの対象外にする
+function cancelLongtoneAttempt(){
+  if(!longtoneAttemptActive) return;
+  longtoneAttemptActive=false;
+  showLongtoneResult(null, false, true);
+  restorePracticeModeAfterLongtone();
+  updateLongtoneStartStopBtn();
+  updateLongtoneTimerUI(0);
+}
+
+function restorePracticeModeAfterLongtone(){
+  practiceMode = practiceModeBeforeLongtone;
+  practiceModeBeforeLongtone = null;
+  syncPracticeModeChipUI();
+}
+
+function updateLongtoneStartStopBtn(){
+  const btn=document.getElementById('ltStartBtn');
+  if(!btn) return;
+  if(longtoneAttemptActive){
+    btn.textContent='■ 中断する';
+    btn.classList.add('stop');
+  }else{
+    btn.textContent='🎯 開始 ('+longtoneDuration+'秒)';
+    btn.classList.remove('stop');
+  }
+}
+
+function updateLongtoneTimerUI(elapsed){
+  const timerEl=document.getElementById('ltTimer');
+  if(timerEl) timerEl.textContent = elapsed.toFixed(1)+' / '+longtoneDuration.toFixed(1)+' 秒';
+  const pct = longtoneTotalFrames>0 ? (longtoneInRangeFrames/longtoneTotalFrames*100) : 0;
+  const barEl=document.getElementById('ltPctBar');
+  const valEl=document.getElementById('ltPctVal');
+  if(barEl){
+    barEl.style.width = Math.min(100,pct)+'%';
+    barEl.style.background = pct>=90?'var(--green)': pct>=60?'var(--yel)':'var(--red)';
+  }
+  if(valEl) valEl.textContent = pct.toFixed(0)+'%';
+}
+
+function showLongtoneResult(pct, isNewBest, wasCancelled){
+  const el =document.getElementById('ltResult');
+  const txt=document.getElementById('ltResultText');
+  if(!el||!txt) return;
+  if(wasCancelled){
+    txt.textContent='中断しました(自己ベストの対象外です)';
+  }else{
+    txt.textContent=(isNewBest?'⭐ 自己ベスト更新！ ':'')+'結果: '+pct.toFixed(0)+'% キープ('+longtoneDuration+'秒間)';
+  }
+  el.classList.toggle('best', !!isNewBest);
+  el.style.display='block';
+}
+
+function renderLongtoneBestDisplay(){
+  const listEl=document.getElementById('ltBestList');
+  if(!listEl) return;
+  listEl.innerHTML = LONGTONE_DURATIONS.map(d=>{
+    const rec = longtoneBests[String(d)];
+    const val = rec ? rec.bestPct.toFixed(0)+'%' : '--';
+    const cur = d===longtoneDuration ? ' <span style="color:var(--blue)">(選択中)</span>' : '';
+    return `<div class="lt-best-row"><span>${d}秒${cur}</span><span>${val}</span></div>`;
+  }).join('');
+}
+
+// マイクが動いている間、練習画面が開いていなくても軽量に現在の音名/セントを更新しておく
+function updateLongtoneNoteDisplay(info){
+  const noteEl =document.getElementById('ltNote');
+  const centsEl=document.getElementById('ltCents');
+  if(!noteEl || !centsEl) return;
+  noteEl.textContent = NOTES_SHARP[info.ni] + info.oct;
+  const a=Math.abs(info.cents);
+  noteEl.style.color = a<IN_TUNE_CENTS ? 'var(--green)' : a<25 ? 'var(--yel)' : 'var(--red)';
+  centsEl.textContent = (info.cents>=0?'+':'')+info.cents.toFixed(1)+' cents';
+}
+
+// パネル切替(チューナー画面 ⇔ ロングトーン練習画面)
+function showPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  const target=document.getElementById(id);
+  if(target) target.classList.add('on');
+  if(id==='panel-tuner'){
+    // キャンバスの表示サイズが変わるため再計算
+    requestAnimationFrame(()=>{
+      const r=cv.getBoundingClientRect();
+      onCanvasResize(r.width, r.height);
+    });
+  }
+  if(id==='panel-scale'){
+    renderScaleGeneratedText();
+    renderTonicPickerLabels();
+    renderPianoKeyboard();
+    renderCustomNoteSeqPreview();
+    renderCustomScaleList();
+    // 鍵盤は全音域を常に表示しているため、開いたときは音階の基準オクターブが見える位置にしておく
+    requestAnimationFrame(()=>scrollKeyboardToOctave(scaleBaseOct));
+  }
+  if(id==='panel-exercise'){
+    renderExTonicLabels();
+    renderExBpm();
+    renderExTimeSigRow();
+    renderRhythmEditor();
+    renderExNoteSeqPreview();
+    renderExerciseList();
+    const exOctLbl=document.getElementById('exBaseOctLabel');
+    if(exOctLbl) exOctLbl.textContent=String(exBaseOct);
+    renderGenericKeyboard('exKeyboard', onExKeyboardTap);
+    requestAnimationFrame(()=>scrollGenericKeyboardToOctave('exKeyboard', exBaseOct));
+    renderCalibValueDisplay();
+  }
+}
+
+// ══════════════════════════════════════
+//  Phase5: スケールモード — 練習画面のUI/進行ロジック
+// ══════════════════════════════════════
+let scaleTonicPc      = 0;         // 選択中の主音(書き譜ni空間、移調設定を反映)
+let scaleModeKey       = 'major';   // major | minorNatural | minorHarmonic | minorMelodic | chromatic
+let scaleBaseOct       = 4;         // スケール生成の基準オクターブ = 鍵盤の開始オクターブ
+
+let currentScaleSeq    = [];        // 現在の練習対象音列: [{ni,oct,label}]
+let scaleSeqIndex      = 0;
+let scaleSessionActive = false;
+let scaleAdvanceMode   = 'auto';    // 'auto'(一定時間キープで次へ) | 'manual'(手動送り)
+let scaleInTuneStartT  = null;
+const SCALE_AUTO_ADVANCE_SEC = 1.2; // 自動送り: この秒数だけ連続で範囲内にいたら次の音へ
+
+// ── カスタム音列ビルダー ──
+let customTapBuildActive = false;
+let customNoteSeq  = [];            // タップ/録音抽出で作成中の音列: [{ni,oct,label}]
+let customScales   = {};            // id -> {id,name,notes,createdAt} (IndexedDB永続化)
+let customRecordActive = false;
+let customRecordBuffer = [];        // 録音抽出用の一時バッファ: {ni,oct,hasSignal,t}
+const CUSTOM_RECORD_MIN_NOTE_SEC = 0.12; // これより短い音は雑音として無視
+
+// ── 音階の生成 & 表示 ──
+function regenerateGeneratedScale(){
+  return generateScale(scaleTonicPc, scaleModeKey, scaleBaseOct);
+}
+// 上行形+下行形を「1セット」として連結する(頂点の主音が連続で重複しないよう1個分ずらす)。
+// 例: Cメジャー → C-D-E-F-G-A-B-C-B-A-G-F-E-D-C
+//     Cマイナー(旋律的) → C-D-E♭-F-G-A-B-C-B♭-A♭-G-F-E♭-D-C
+//     (旋律的短音階は下行形の構成音が上行形と異なるため、generateScale()側で
+//      既に下行形を自然短音階として正しく算出済み。ここでは単純に連結するだけでよい)
+function combineAscDesc(scale){
+  return scale.ascending.concat(scale.descending.slice(1));
+}
+function renderScaleGeneratedText(){
+  const el=document.getElementById('scaleGeneratedText');
+  if(!el) return;
+  const scale=regenerateGeneratedScale();
+  el.textContent = combineAscDesc(scale).map(n=>n.label).join(' - ');
+}
+function renderTonicPickerLabels(){
+  document.querySelectorAll('[data-tonic-pc]').forEach(btn=>{
+    const pc=parseInt(btn.dataset.tonicPc,10);
+    btn.textContent = tonicLabelFor(pc, scaleModeKey);
+  });
+}
+function setScaleTonic(btn){
+  scaleTonicPc=parseInt(btn.dataset.tonicPc,10);
+  document.querySelectorAll('[data-tonic-pc]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderScaleGeneratedText();
+  renderPianoKeyboard();
+}
+function setScaleMode(btn){
+  scaleModeKey=btn.dataset.scaleMode;
+  document.querySelectorAll('[data-scale-mode]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('scaleModeLabel').textContent = SCALE_MODE_LABELS[scaleModeKey];
+  renderTonicPickerLabels();
+  renderScaleGeneratedText();
+  renderPianoKeyboard();
+}
+
+// ── 鍵盤UI(表示し得る全音域を常に表示。横スクロールで移動) ──
+// pcは書き譜(ni)空間なので、移調設定(semis)を変えると「ド」の位置・ラベルは
+// 既存のinfo.ni計算と同じ理屈で自動的に正しい位置にシフトする
+const KEYBOARD_MIN_OCT = 1, KEYBOARD_MAX_OCT = 7; // チューナーの実用検知音域にほぼ対応
+function buildKeyboardKeys(){
+  const keys=[];
+  for(let oct=KEYBOARD_MIN_OCT; oct<=KEYBOARD_MAX_OCT; oct++){
+    for(let pc=0;pc<12;pc++){
+      keys.push({ni:pc, oct, isBlack:[1,3,6,8,10].includes(pc)});
+    }
+  }
+  return keys;
+}
+// 鍵盤内の指定オクターブの位置までスクロールする(全音域を常に表示するため、
+// 生成した音階の主音オクターブが見えるように自動で持っていく)
+function scrollKeyboardToOctave(oct){
+  const wrap=document.getElementById('scaleKeyboard');
+  if(!wrap) return;
+  const target=wrap.querySelector(`.pkey[data-oct="${oct}"]:not(.black)`);
+  if(target) target.scrollIntoView({inline:'start', block:'nearest'});
+}
+function labelForKey(ni){
+  const inScale=currentScaleSeq.find(n=>n.ni===ni);
+  if(inScale) return inScale.label;
+  return NOTES_SHARP[ni];
+}
+
+// 「鍵盤で使用する音を表示」トグル。調・音階を選んだ段階(練習開始前)でも、
+// その音階が使う音を鍵盤上で確認できるようにする。
+// 旋律的短音階だけは上行形・下行形で6・7度の音が異なるため、
+//   ・上行/下行どちらでも共通して使う音 → 通常のハイライト
+//   ・上行形だけで使う音                 → ハイライト+「↑」
+//   ・下行形だけで使う音                 → ハイライト+「↓」
+// という形で区別する(長調/自然短音階/和声短音階/半音階は上行=下行なので矢印は出ない)。
+let scaleHighlightOn = false;
+function toggleScaleHighlight(btn){
+  scaleHighlightOn = !scaleHighlightOn;
+  btn.textContent = '🎹 鍵盤で使用する音を表示: '+(scaleHighlightOn?'ON':'OFF');
+  btn.classList.toggle('on', scaleHighlightOn);
+  renderPianoKeyboard();
+}
+// 現在の調・音階における pc(ピッチクラス) -> {degree:1-7(半音階はnull), direction:'common'|'asc'|'desc'} のマップを返す。
+// 主音は degree:1。旋律的短音階のみ6・7度で上行/下行の音が異なるため、
+// 同じ度数番号のまま direction を 'asc'/'desc' に分けて区別する。
+function getScaleDegreeMap(){
+  const map = new Map();
+  const modeKey = scaleModeKey;
+  if(modeKey==='chromatic'){
+    for(let i=0;i<12;i++) map.set(i, { degree:null, direction:'common' });
+    return map;
+  }
+  let tonicInfo, ascPattern;
+  if(modeKey==='major'){
+    tonicInfo = MAJOR_KEY_TABLE[scaleTonicPc]; ascPattern = SCALE_STEP_PATTERNS.major;
+  } else {
+    tonicInfo = MINOR_KEY_TABLE[scaleTonicPc];
+    ascPattern = modeKey==='minorHarmonic' ? SCALE_STEP_PATTERNS.minorHarmonic
+               : modeKey==='minorMelodic'  ? SCALE_STEP_PATTERNS.minorMelodicAsc
+               : SCALE_STEP_PATTERNS.minorNatural;
+  }
+  const ascDegrees = generateDiatonicDegrees(scaleTonicPc, tonicInfo.letter, ascPattern);
+  const descDegrees = modeKey==='minorMelodic'
+    ? generateDiatonicDegrees(scaleTonicPc, tonicInfo.letter, SCALE_STEP_PATTERNS.minorNatural)
+    : ascDegrees;
+  for(let i=0;i<7;i++){
+    const degreeNum = i+1;
+    const pcAsc = ascDegrees[i].pc, pcDesc = descDegrees[i].pc;
+    if(pcAsc===pcDesc){
+      map.set(pcAsc, { degree:degreeNum, direction:'common' });
+    } else {
+      map.set(pcAsc, { degree:degreeNum, direction:'asc' });
+      map.set(pcDesc, { degree:degreeNum, direction:'desc' });
+    }
+  }
+  return map;
+}
+
+function renderPianoKeyboard(){
+  const wrap=document.getElementById('scaleKeyboard');
+  if(!wrap) return;
+  const keys=buildKeyboardKeys();
+  const target = scaleSessionActive ? currentScaleSeq[scaleSeqIndex] : null;
+  const degMap = scaleHighlightOn ? getScaleDegreeMap() : null;
+  wrap.innerHTML = keys.map(k=>{
+    const cls=['pkey']; if(k.isBlack) cls.push('black');
+    if(target && target.ni===k.ni && target.oct===k.oct) cls.push('target');
+    let badge='';
+    if(degMap && degMap.has(k.ni)){
+      const info = degMap.get(k.ni);
+      const isRoot = k.ni===scaleTonicPc;
+      cls.push('scale-tone');
+      if(isRoot) cls.push('scale-tone-root');
+      if(info.degree!=null){
+        const arrow = info.direction==='asc' ? '↑' : info.direction==='desc' ? '↓' : '';
+        badge = `<span class="scale-tone-badge">${info.degree}${arrow}</span>`;
+      }
+    }
+    return `<button type="button" class="${cls.join(' ')}" data-ni="${k.ni}" data-oct="${k.oct}">${badge}${escapeHtml(labelForKey(k.ni))}<small>${k.oct}</small></button>`;
+  }).join('');
+  wrap.querySelectorAll('.pkey').forEach(btn=>{
+    btn.addEventListener('click', ()=>onKeyboardKeyTap(parseInt(btn.dataset.ni,10), parseInt(btn.dataset.oct,10), btn));
+  });
+}
+// −/+ ボタンは「鍵盤の表示範囲」ではなく「生成する音階の基準オクターブ」を変える。
+// 鍵盤自体は常に全音域を表示しているので、変更後はそのオクターブが見える位置まで自動スクロールする。
+function shiftKeyboardOctave(delta){
+  scaleBaseOct=Math.max(KEYBOARD_MIN_OCT,Math.min(KEYBOARD_MAX_OCT,scaleBaseOct+delta));
+  const lbl=document.getElementById('keyboardOctLabel');
+  if(lbl) lbl.textContent = String(scaleBaseOct);
+  renderScaleGeneratedText();
+  renderPianoKeyboard();
+  scrollKeyboardToOctave(scaleBaseOct);
+}
+
+// 鍵盤タップ: プレビュー再生 + (タップ作成モード中なら)カスタム音列に追加
+async function onKeyboardKeyTap(ni, oct, btn){
+  await previewKeyTone(ni, oct, btn);
+  if(customTapBuildActive) appendCustomNote(ni, oct);
+}
+// 書き譜ni→実音pcへの変換(既存のinfo.ni = (concertNi+semis)%12 の逆算)でプレビュー再生する
+async function previewKeyTone(ni, oct, btn){
+  await ensureCtx();
+  const concertNi=((ni - semis) % 12 + 12) % 12;
+  const midi=(oct+1)*12+concertNi;
+  const freq=a4*Math.pow(2,(midi-69)/12);
+  const osc=toneCtx.createOscillator();
+  const gn=toneCtx.createGain();
+  osc.type='sine'; osc.frequency.value=freq;
+  gn.gain.setValueAtTime(0, toneCtx.currentTime);
+  gn.gain.linearRampToValueAtTime(0.5, toneCtx.currentTime+0.02);
+  gn.gain.linearRampToValueAtTime(0, toneCtx.currentTime+0.5);
+  osc.connect(gn); gn.connect(toneCtx.destination);
+  osc.start(); osc.stop(toneCtx.currentTime+0.52);
+  if(btn){ btn.classList.add('playing'); setTimeout(()=>btn.classList.remove('playing'),480); }
+}
+
+// ── 練習の進行(自動送り/手動送り) ──
+function toggleScalePracticeSession(){
+  scaleSessionActive ? stopScalePractice() : startScalePractice();
+}
+function startScalePractice(){
+  if(!isRunning){ toast('先にマイクを開始してください'); return; }
+  if(currentScaleSeq.length===0 || currentScaleSeq!==customNoteSeq){
+    currentScaleSeq = combineAscDesc(regenerateGeneratedScale()); // 上行形+下行形を1セットとして練習する
+  }
+  scaleSeqIndex=0;
+  scaleSessionActive=true;
+  scaleInTuneStartT=null;
+  updateScalePracticeControlsUI();
+  renderScalePracticeSequenceLabel();
+  renderPianoKeyboard();
+}
+function stopScalePractice(){
+  scaleSessionActive=false;
+  scaleInTuneStartT=null;
+  updateScalePracticeControlsUI();
+  renderPianoKeyboard();
+}
+function setScaleAdvanceMode(btn){
+  scaleAdvanceMode=btn.dataset.advMode;
+  document.querySelectorAll('[data-adv-mode]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const nav=document.getElementById('scaleManualNav');
+  if(nav) nav.style.display = scaleAdvanceMode==='manual' ? 'flex' : 'none';
+  scaleInTuneStartT=null;
+}
+function manualAdvanceScale(dir){
+  if(!scaleSessionActive || currentScaleSeq.length===0) return;
+  scaleInTuneStartT=null;
+  const next=scaleSeqIndex+dir;
+  if(next>=currentScaleSeq.length){ finishScalePracticeRun(); return; }
+  scaleSeqIndex=Math.max(0, next);
+  renderScalePracticeSequenceLabel();
+  renderPianoKeyboard();
+}
+function updateScalePracticeControlsUI(){
+  const btn=document.getElementById('scalePracticeToggleBtn');
+  if(!btn) return;
+  btn.textContent = scaleSessionActive ? '■ 練習を終了' : '▶ この音階で練習開始';
+  btn.classList.toggle('stop', scaleSessionActive);
+}
+function renderScalePracticeSequenceLabel(){
+  const posEl=document.getElementById('scaleSeqPos');
+  const noteEl=document.getElementById('scaleTargetNote');
+  if(!posEl || !noteEl || currentScaleSeq.length===0) return;
+  posEl.textContent=(scaleSeqIndex+1)+' / '+currentScaleSeq.length;
+  const t=currentScaleSeq[scaleSeqIndex];
+  noteEl.textContent=t.label+t.oct;
+}
+function finishScalePracticeRun(){
+  scaleSessionActive=false;
+  updateScalePracticeControlsUI();
+  renderPianoKeyboard();
+  toast('🎉 音階を完了しました！');
+}
+
+// 毎フレーム呼び出し: ライブの音名/セント表示の更新(練習セッション中でなくても表示)
+function updateScaleLiveDisplay(info){
+  const el=document.getElementById('scaleLiveNote');
+  if(!el) return;
+  el.textContent = NOTES_SHARP[info.ni]+info.oct+'  '+(info.cents>=0?'+':'')+info.cents.toFixed(1)+'¢';
+}
+// 毎フレーム呼び出し: 割合ではなく「一定時間キープ」で進める判定(Phase3の判定閾値IN_TUNE_CENTSを流用)
+function tickScalePractice(info){
+  if(!scaleSessionActive || currentScaleSeq.length===0) return;
+  const target=currentScaleSeq[scaleSeqIndex];
+  const inTune = target.ni===info.ni && Math.abs(info.cents)<IN_TUNE_CENTS;
+  if(scaleAdvanceMode==='auto'){
+    if(inTune){
+      if(scaleInTuneStartT===null) scaleInTuneStartT=audioCtx.currentTime;
+      const elapsed=audioCtx.currentTime-scaleInTuneStartT;
+      updateScaleKeepBarUI(elapsed);
+      if(elapsed>=SCALE_AUTO_ADVANCE_SEC){
+        scaleInTuneStartT=null;
+        if(scaleSeqIndex<currentScaleSeq.length-1){
+          scaleSeqIndex++;
+          renderScalePracticeSequenceLabel();
+          renderPianoKeyboard();
+        }else{
+          finishScalePracticeRun();
+        }
+      }
+    }else{
+      scaleInTuneStartT=null;
+      updateScaleKeepBarUI(0);
+    }
+  }
+}
+function updateScaleKeepBarUI(elapsed){
+  const bar=document.getElementById('scaleKeepBar');
+  if(!bar) return;
+  bar.style.width = Math.min(100, elapsed/SCALE_AUTO_ADVANCE_SEC*100)+'%';
+}
+
+// ── カスタム音列: タップで作成 ──
+function toggleCustomTapBuild(btn){
+  customTapBuildActive=!customTapBuildActive;
+  btn.classList.toggle('on', customTapBuildActive);
+  btn.textContent = customTapBuildActive ? '🎹 タップで追加中(もう一度押すと終了)' : '🎹 鍵盤タップで音を追加';
+}
+function appendCustomNote(ni, oct){
+  if(customNoteSeq.length>=20){ toast('カスタム音列は20音までです'); return; }
+  customNoteSeq.push({ni, oct, label:labelForKey(ni)});
+  renderCustomNoteSeqPreview();
+}
+function undoCustomNote(){ customNoteSeq.pop(); renderCustomNoteSeqPreview(); }
+function clearCustomNoteSeq(){ customNoteSeq=[]; renderCustomNoteSeqPreview(); }
+function renderCustomNoteSeqPreview(){
+  const el=document.getElementById('customSeqPreview');
+  if(!el) return;
+  if(customNoteSeq.length===0){ el.innerHTML='<span class="note-stats-empty">まだ音がありません</span>'; return; }
+  el.innerHTML = customNoteSeq.map(n=>`<span class="custom-note-chip">${escapeHtml(n.label)}${n.oct}</span>`).join('');
+}
+
+// ── カスタム音列: 録音から自動抽出(音の境界検出) ──
+function toggleCustomRecord(){
+  if(!isRunning){ toast('先にマイクを開始してください'); return; }
+  customRecordActive ? stopCustomRecord() : startCustomRecord();
+}
+function startCustomRecord(){
+  customRecordActive=true;
+  customRecordBuffer=[];
+  updateCustomRecordBtnUI();
+}
+function stopCustomRecord(){
+  customRecordActive=false;
+  updateCustomRecordBtnUI();
+  const extracted=extractNotesFromBuffer(customRecordBuffer);
+  if(extracted.length===0){ toast('音を検出できませんでした'); return; }
+  customNoteSeq = extracted.slice(0,20);
+  if(extracted.length>20) toast('20音を超えたため先頭20音のみ使用します');
+  renderCustomNoteSeqPreview();
+}
+function updateCustomRecordBtnUI(){
+  const btn=document.getElementById('customRecordBtn');
+  if(!btn) return;
+  btn.textContent = customRecordActive ? '⏹ 録音終了(音を抽出)' : '🎙 録音から抽出開始';
+  btn.classList.toggle('stop', customRecordActive);
+}
+// 連続して同じ(ni,oct)が続く区間を1音とみなし、短すぎる区間(雑音)は無視して境界検出する
+function extractNotesFromBuffer(buf){
+  const notes=[];
+  let cur=null;
+  const flush=(endT)=>{
+    if(cur && (endT-cur.startT)>=CUSTOM_RECORD_MIN_NOTE_SEC){
+      notes.push({ni:cur.ni, oct:cur.oct, label:labelForKey(cur.ni)});
+    }
+    cur=null;
+  };
+  buf.forEach(f=>{
+    if(!f.hasSignal){ flush(f.t); return; }
+    if(!(cur && cur.ni===f.ni && cur.oct===f.oct)){ flush(f.t); cur={ni:f.ni, oct:f.oct, startT:f.t}; }
+  });
+  if(buf.length) flush(buf[buf.length-1].t);
+  return notes;
+}
+
+// ── カスタム音列を練習にセット / 名前をつけて保存(IndexedDB) ──
+function useCustomSequenceForPractice(){
+  if(customNoteSeq.length===0){ toast('音列がありません'); return; }
+  currentScaleSeq=customNoteSeq;
+  scaleSeqIndex=0;
+  scaleSessionActive=false;
+  updateScalePracticeControlsUI();
+  renderScalePracticeSequenceLabel();
+  renderPianoKeyboard();
+  toast('カスタム音列を練習にセットしました');
+}
+function saveCustomScale(){
+  if(customNoteSeq.length===0){ toast('保存する音列がありません'); return; }
+  const name=prompt('この音列の名前を入力してください', 'マイフレーズ');
+  if(!name) return;
+  const id='cs_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  const rec={id, name, notes:customNoteSeq.slice(), createdAt:Date.now()};
+  customScales[id]=rec;
+  if(noteStatsDB){
+    try{
+      const tx=noteStatsDB.transaction(CUSTOM_SCALES_STORE,'readwrite');
+      tx.objectStore(CUSTOM_SCALES_STORE).put(rec);
+    }catch(e){ console.warn('customScale save failed', e); }
+  }
+  renderCustomScaleList();
+  toast('保存しました: '+name);
+}
+function loadAllCustomScales(){
+  return new Promise((resolve)=>{
+    if(!noteStatsDB){ resolve(); return; }
+    const tx=noteStatsDB.transaction(CUSTOM_SCALES_STORE, 'readonly');
+    const req=tx.objectStore(CUSTOM_SCALES_STORE).getAll();
+    req.onsuccess=()=>{
+      customScales={};
+      (req.result||[]).forEach(r=>{ customScales[r.id]=r; });
+      renderCustomScaleList();
+      resolve();
+    };
+    req.onerror=()=>resolve();
+  });
+}
+function renderCustomScaleList(){
+  const el=document.getElementById('customScaleList');
+  if(!el) return;
+  const list=Object.values(customScales).sort((a,b)=>b.createdAt-a.createdAt);
+  if(list.length===0){ el.innerHTML='<div class="note-stats-empty">保存された音列はありません</div>'; return; }
+  el.innerHTML=list.map(r=>`
+    <div class="custom-scale-row">
+      <span class="custom-scale-name">${escapeHtml(r.name)}</span>
+      <span class="custom-scale-count">${r.notes.length}音</span>
+      <button type="button" class="custom-scale-load-btn" data-act="load" data-id="${r.id}">読込</button>
+      <button type="button" class="custom-scale-del-btn" data-act="del" data-id="${r.id}">🗑</button>
+    </div>`).join('');
+  el.querySelectorAll('[data-act="load"]').forEach(b=>b.addEventListener('click', ()=>loadCustomScale(b.dataset.id)));
+  el.querySelectorAll('[data-act="del"]').forEach(b=>b.addEventListener('click', ()=>deleteCustomScale(b.dataset.id)));
+}
+function loadCustomScale(id){
+  const rec=customScales[id];
+  if(!rec) return;
+  customNoteSeq=rec.notes.slice();
+  renderCustomNoteSeqPreview();
+  useCustomSequenceForPractice();
+}
+function deleteCustomScale(id){
+  if(!confirm('この音列を削除しますか？')) return;
+  delete customScales[id];
+  if(noteStatsDB){
+    try{
+      const tx=noteStatsDB.transaction(CUSTOM_SCALES_STORE, 'readwrite');
+      tx.objectStore(CUSTOM_SCALES_STORE).delete(id);
+    }catch(e){ console.warn('customScale delete failed', e); }
+  }
+  renderCustomScaleList();
+}
+
+// ══════════════════════════════════════
+//  Phase7: 課題(エクササイズ)エディタ
+//  ・調 / テンポ / リズムパターン / 音の配列パターン(調のプールとは独立)の4項目を
+//    自由に編集して「課題」として保存する。実行(カウントイン付き演奏＋採点)は次段階で実装。
+// ══════════════════════════════════════
+let exPrimaryKind   = 'major';   // 'major' | 'minor' | 'chromatic'
+let exMinorVariant  = 'natural'; // 'natural' | 'harmonic' | 'melodic' (exPrimaryKind==='minor'の時のみ有効)
+let exTonicPc       = 0;
+let exBpm           = 120;
+let exTimeSigBeats  = 4;
+let exTimeSigUnit   = 4;
+let exRhythmPattern = [ {dur:1,rest:false}, {dur:1,rest:false}, {dur:1,rest:false}, {dur:1,rest:false} ]; // 既定: 4/4の4分音符×4
+let exNoteSeq       = []; // 音の配列パターン(調のプールとは独立管理): [{ni,oct,label}]
+let exBaseOct       = 4;  // 「調から自動生成」時の基準オクターブ(独立管理の音列を手動編集する起点として使うだけ)
+let exTapBuildActive = false;
+let exercises = {}; // id -> record (IndexedDB永続化)
+
+const EX_TIME_SIGS = [
+  {beats:2, unit:4, label:'2/4'},
+  {beats:3, unit:4, label:'3/4'},
+  {beats:4, unit:4, label:'4/4'},
+  {beats:5, unit:4, label:'5/4'},
+  {beats:6, unit:8, label:'6/8'},
+  {beats:3, unit:8, label:'3/8'},
+];
+
+// 音価は4分音符=1を基準にした比率で保持する(拍子の分母が8の場合も同じ単位でOK)
+const RHYTHM_DUR_OPTIONS = [
+  {val:1,    label:'4分'},
+  {val:0.5,  label:'8分'},
+  {val:1.5,  label:'付4'},
+  {val:2,    label:'2分'},
+  {val:0.25, label:'16分'},
+  {val:0.75, label:'付8'},
+  {val:3,    label:'付2'},
+  {val:4,    label:'全音'},
+  {val:1/3,  label:'3連'},
+  {val:0.125,label:'32分'},
+];
+function cycleRhythmDur(val){
+  const idx = RHYTHM_DUR_OPTIONS.findIndex(o=>Math.abs(o.val-val)<1e-6);
+  return RHYTHM_DUR_OPTIONS[(idx+1)%RHYTHM_DUR_OPTIONS.length].val;
+}
+function rhythmDurLabel(val){
+  const o = RHYTHM_DUR_OPTIONS.find(o=>Math.abs(o.val-val)<1e-6);
+  return o ? o.label : val.toFixed(2)+'拍';
+}
+// 主要な音価には楽譜記号(♩=4分 ♪=8分 ♬=16分、Unicode標準の音楽記号で機種依存が少ないもの)を添える。
+// 半音符・全音符・付点・3連符などは記号を持たず、音価バー(長さの視覚的な棒グラフ)だけで表現する。
+function rhythmDurGlyph(val){
+  if(Math.abs(val-1)<1e-6)    return '♩';
+  if(Math.abs(val-0.5)<1e-6)  return '♪';
+  if(Math.abs(val-0.25)<1e-6) return '♬';
+  return '';
+}
+
+function exResolvedModeKey(){
+  if(exPrimaryKind==='chromatic') return 'chromatic';
+  if(exPrimaryKind==='major') return 'major';
+  return exMinorVariant==='harmonic' ? 'minorHarmonic'
+       : exMinorVariant==='melodic'  ? 'minorMelodic'
+       : 'minorNatural';
+}
+
+function setExPrimaryKind(btn){
+  exPrimaryKind = btn.dataset.exKind;
+  document.querySelectorAll('[data-ex-kind]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('exMinorVariantRow').style.display = (exPrimaryKind==='minor') ? 'flex' : 'none';
+  renderExTonicLabels();
+}
+function setExMinorVariant(btn){
+  exMinorVariant = btn.dataset.exMinor;
+  document.querySelectorAll('[data-ex-minor]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderExTonicLabels();
+}
+function renderExTonicLabels(){
+  document.querySelectorAll('[data-ex-tonic-pc]').forEach(btn=>{
+    const pc=parseInt(btn.dataset.exTonicPc,10);
+    btn.textContent = tonicLabelFor(pc, exResolvedModeKey());
+  });
+}
+function setExTonic(btn){
+  exTonicPc=parseInt(btn.dataset.exTonicPc,10);
+  document.querySelectorAll('[data-ex-tonic-pc]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function adjustExBaseOct(delta){
+  exBaseOct=Math.max(KEYBOARD_MIN_OCT,Math.min(KEYBOARD_MAX_OCT,exBaseOct+delta));
+  const lbl=document.getElementById('exBaseOctLabel');
+  if(lbl) lbl.textContent=String(exBaseOct);
+}
+// 現在選択中の調(長調/短調[自然・和声・旋律的]/半音階)+開始音+基準オクターブから、
+// スケール練習と同じロジック(上行形+下行形を1セット)で音列を自動生成し、
+// 「音の配列パターン」欄に流し込む。あくまで叩き台であり、生成後は自由に手動編集できる
+// (「調のプールとは独立管理」という設計自体は崩さない: 生成後は普通の手動データと同列に扱う)。
+function autoFillExNoteSeqFromKey(){
+  if(exNoteSeq.length>0 && !confirm('現在の音の配列パターンを、調から自動生成した音列で置き換えます。よろしいですか？')) return;
+  const scale = generateScale(exTonicPc, exResolvedModeKey(), exBaseOct);
+  exNoteSeq = combineAscDesc(scale).map(n=>({ni:n.ni, oct:n.oct, label:n.label}));
+  renderExNoteSeqPreview();
+  toast('調から音列を自動生成しました('+exNoteSeq.length+'音)');
+}
+
+function adjustExBpm(d){
+  exBpm=Math.max(20,Math.min(300,exBpm+d));
+  renderExBpm();
+}
+function renderExBpm(){
+  const el=document.getElementById('exBpmNum');
+  if(el) el.innerHTML = exBpm+'<span style="font-size:13px;color:var(--txt2)"> BPM</span>';
+}
+function syncExBpmFromMetronome(){
+  exBpm = metro.bpm;
+  renderExBpm();
+  toast('メトロノームの現在値('+metro.bpm+'BPM)を適用しました');
+}
+
+// ══════════════════════════════════════
+//  Phase7: ピッチ検出の遅延キャリブレーション
+//  ・課題実行(次段階)での採点は「検出した時刻」を使うが、ピッチ検出には
+//    アルゴリズム上どうしても数十ms程度の遅延がある。補正なしだと常に
+//    「実際より遅れて演奏した」判定になってしまうため、事前にタップ計測で
+//    平均遅延を測っておき、以後の採点で差し引く。
+// ══════════════════════════════════════
+let pitchLatencyMs   = 0;      // 検出遅延の補正値(ms)。実測タップと理想クリック時刻の平均ズレ
+let calibActive      = false;
+let calibPrevHasSignal = false;
+let calibClickTimes  = [];     // 予定されたクリックの理想時刻(audioCtx.currentTime基準)
+let calibOnsetTimes  = [];     // 検出された発音の立ち上がり時刻(同じ時計基準)
+const CALIB_BPM         = 100;
+const CALIB_CLICK_COUNT = 8;
+const CALIB_SKIP_FIRST  = 2;   // 最初の数回は準備運動として計測から除外
+
+function savePitchLatencyPrefs(){
+  try{ localStorage.setItem('tunerPitchLatencyMs', JSON.stringify({ms:pitchLatencyMs})); }catch(e){}
+}
+function loadPitchLatencyPrefs(){
+  try{
+    const raw=localStorage.getItem('tunerPitchLatencyMs');
+    if(raw){ const o=JSON.parse(raw); if(typeof o.ms==='number') pitchLatencyMs=o.ms; }
+  }catch(e){}
+}
+function renderCalibValueDisplay(){
+  const el=document.getElementById('calibValueDisplay');
+  if(el) el.textContent = '現在の補正値: '+pitchLatencyMs+'ms'+(pitchLatencyMs===0?'(未計測)':'');
+}
+function renderCalibStatus(msg){
+  const el=document.getElementById('calibStatus');
+  if(el) el.textContent = msg;
+}
+// クリック音をチューナー本体と同じaudioCtx上で再生する(メトロノーム機能のmetro.ctxとは
+// 別の時計なので、ここではあえて使わず、ピッチ検出と同じ時計に揃える)
+function playCalibClick(time, accent){
+  if(!audioCtx) return null;
+  const ctx=audioCtx;
+  const osc=ctx.createOscillator();
+  const gain=ctx.createGain();
+  osc.type='square';
+  osc.frequency.value = accent ? 2200 : 1500;
+  gain.gain.setValueAtTime(0.0001, time);
+  gain.gain.exponentialRampToValueAtTime(accent?0.7:0.5, time+0.002);
+  gain.gain.exponentialRampToValueAtTime(0.0001, time+0.05);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(time); osc.stop(time+0.06);
+  return osc;
+}
+// メトロノーム画面の「🥁 開始」がONのまま計測/課題実行を始めると、別のAudioContext(metro.ctx)上で
+// 独立したテンポのクリックが同時に鳴ってしまい、カウントの数がわかりにくくなったり、
+// 2つの時計が別々に進むことで徐々にズレて聞こえたりする。計測/実行開始時は必ず止めておく。
+function stopBuiltinMetronomeIfRunning(){
+  if(!metro.running) return;
+  metro.running=false;
+  if(metro.timerId) clearTimeout(metro.timerId);
+  const btn=document.getElementById('metroBtn');
+  if(btn) btn.classList.remove('stop');
+  const txt=document.getElementById('metroBtnTxt');
+  if(txt) txt.textContent='🥁 開始';
+  const light=document.getElementById('metroLight');
+  if(light) light.style.background='#2c2c2e';
+  toast('メトロノーム画面のクリックと二重に鳴らないよう、メトロノームを停止しました');
+}
+
+function startCalibration(){
+  if(!isRunning || !audioCtx){
+    toast('先にチューナーのマイクを開始してください');
+    return;
+  }
+  if(calibActive) return;
+  stopBuiltinMetronomeIfRunning();
+  calibActive = true;
+  calibClickTimes = [];
+  calibOnsetTimes = [];
+  calibPrevHasSignal = false;
+  const startAt = audioCtx.currentTime + 0.4;
+  const interval = 60/CALIB_BPM;
+  for(let i=0;i<CALIB_CLICK_COUNT;i++){
+    const t = startAt + i*interval;
+    calibClickTimes.push(t);
+    playCalibClick(t);
+  }
+  renderCalibStatus('計測中… クリック音に合わせて短く「タッ、タッ」と吹いてください(残り'+CALIB_CLICK_COUNT+'回)');
+  const totalWaitMs = (startAt + CALIB_CLICK_COUNT*interval + 0.6 - audioCtx.currentTime)*1000;
+  setTimeout(finishCalibration, Math.max(500, totalWaitMs));
+}
+function finishCalibration(){
+  calibActive = false;
+  // 各クリックの理想時刻に対して、直後(-150ms〜+500ms)の最も近い検出オンセットを対応付ける
+  const usedOnsets = new Set();
+  const deltas = [];
+  calibClickTimes.forEach((ct, idx)=>{
+    if(idx < CALIB_SKIP_FIRST) return; // 最初の数回は準備運動として除外
+    let best=-1, bestAbs=Infinity;
+    calibOnsetTimes.forEach((ot,oi)=>{
+      if(usedOnsets.has(oi)) return;
+      const diff = ot - ct;
+      if(diff >= -0.15 && diff <= 0.5 && Math.abs(diff) < bestAbs){ best=oi; bestAbs=Math.abs(diff); }
+    });
+    if(best>=0){ usedOnsets.add(best); deltas.push(calibOnsetTimes[best]-ct); }
+  });
+  const triedCount = CALIB_CLICK_COUNT - CALIB_SKIP_FIRST;
+  if(deltas.length===0){
+    renderCalibStatus('⚠ 発音を検出できませんでした。クリック音に合わせてもう少しはっきり吹いてから、もう一度お試しください。');
+    return;
+  }
+  const avgSec = deltas.reduce((a,b)=>a+b,0)/deltas.length;
+  pitchLatencyMs = Math.round(avgSec*1000);
+  savePitchLatencyPrefs();
+  renderCalibValueDisplay();
+  renderCalibStatus('✓ 検出遅延: 平均 '+pitchLatencyMs+'ms ('+deltas.length+'/'+triedCount+'回のタップから計測。以後の課題採点で自動的に補正します)');
+}
+function resetCalibration(){
+  pitchLatencyMs = 0;
+  savePitchLatencyPrefs();
+  renderCalibValueDisplay();
+  renderCalibStatus('補正値をリセットしました(0ms)');
+}
+
+// ══════════════════════════════════════
+//  Phase7: 課題の実行(カウントイン → ピッチ+リズムタイミングのリアルタイム記録 → レビュー)
+// ══════════════════════════════════════
+let exExecActive           = false;
+let exExecPrevHasSignal    = false;
+let exExecLastNi           = null; // 直前フレームで確定していた音(ni)。休符を挟まない連続音('タンタンタタタン'等)の
+let exExecLastOct          = null; // 音の切り替わりを検出するために使う(無音を挟んだオンセットだけでは不十分なため)
+let exExecEvents           = [];   // リズム+音を1つに合成したイベント列(休符含む): [{idx,rest,dur,durSec,idealOnsetSec,idealOffsetSec,ni,oct,label}]
+let exExecResults          = [];   // 非休符イベントごとの採点結果
+let exExecStartAudioTime   = 0;    // カウントイン後、演奏が始まる予定のaudioCtx時刻(=理想時刻の原点)
+let exExecFinishTimerId    = null;
+let exExecCountInTimerId   = null;
+let exExecScheduledOscillators = []; // カウントイン+演奏中ずっと鳴らし続けるクリック音のオシレーター(中断時に予約分を止めるため保持)
+let practiceModeBeforeExercise = null;
+
+// 中断/終了時に、まだ鳴っていない予約済みクリックを止める(既にstart()した後でも、
+// 予定時刻より前ならstop()で無音化できる)
+function stopAllScheduledExecClicks(){
+  const now = audioCtx ? audioCtx.currentTime : 0;
+  exExecScheduledOscillators.forEach(osc=>{ try{ osc.stop(now); }catch(e){} });
+  exExecScheduledOscillators = [];
+}
+
+// リズムパターン(音価配列)+音の配列パターンを、実際の時刻付きイベント列に変換する。
+// dur は「4分音符=1」の比率で保持しているため、演奏中の秒数へは60/bpmを掛けるだけでよい。
+function buildExExecEvents(){
+  const secPerQuarter = 60/exBpm;
+  let cum = 0, noteIdx = 0;
+  return exRhythmPattern.map((c,i)=>{
+    const durSec = c.dur*secPerQuarter;
+    const ev = { idx:i, rest:c.rest, dur:c.dur, durSec, idealOnsetSec:cum, idealOffsetSec:cum+durSec };
+    if(!c.rest){
+      const n = exNoteSeq[noteIdx]; noteIdx++;
+      if(n){ ev.ni=n.ni; ev.oct=n.oct; ev.label=n.label; }
+    }
+    cum += durSec;
+    return ev;
+  });
+}
+
+function renderExExecStatus(msg){
+  const el=document.getElementById('exExecStatus');
+  if(el) el.textContent = msg;
+}
+function updateExExecUIRunning(running){
+  const startBtn=document.getElementById('exExecStartBtn');
+  const cancelBtn=document.getElementById('exExecCancelBtn');
+  const liveRow=document.getElementById('exExecLiveRow');
+  if(startBtn) startBtn.style.display = running ? 'none' : '';
+  if(cancelBtn) cancelBtn.style.display = running ? '' : 'none';
+  if(liveRow) liveRow.style.display = running ? 'flex' : 'none';
+}
+function renderExExecLive(idx, total, label){
+  const idxEl=document.getElementById('exExecLiveIdx');
+  const noteEl=document.getElementById('exExecLiveNote');
+  if(idxEl) idxEl.textContent = (idx+1)+' / '+total;
+  if(noteEl) noteEl.textContent = label||'-';
+}
+
+function startExerciseExecution(){
+  if(!isRunning || !audioCtx){ toast('先にチューナーのマイクを開始してください'); return; }
+  if(exExecActive) return;
+  if(exRhythmPattern.length===0){ toast('リズムパターンがありません'); return; }
+  if(exNoteSeq.length===0){ toast('音の配列パターンがありません'); return; }
+  if(!syncExCountStatus()){
+    toast('⚠ リズムのコマ数と音の数が一致していません。修正してから実行してください');
+    return;
+  }
+  stopBuiltinMetronomeIfRunning();
+
+  exExecEvents = buildExExecEvents();
+  exExecResults = exExecEvents.filter(e=>!e.rest).map(e=>({
+    idx:e.idx, ni:e.ni, oct:e.oct, label:e.label,
+    idealOnsetSec:e.idealOnsetSec, idealOffsetSec:e.idealOffsetSec, durSec:e.durSec,
+    actualOnsetSec:null, deviationMs:null, matched:false, cents:null, detectedLabel:null
+  }));
+
+  const base = exTimeSigUnit===8 ? 0.5 : 1;
+  const secPerQuarter = 60/exBpm;
+  const clickInterval = base*secPerQuarter;
+  const countInStart = audioCtx.currentTime + 0.3;
+  const totalDurSec = exExecEvents.length ? exExecEvents[exExecEvents.length-1].idealOffsetSec : 0;
+  // カウントインのクリック(拍子ぶん)に続けて、演奏中もずっと同じ拍のクリックを鳴らし続ける。
+  // 「カウントは演奏中も消えないでほしい」との要望どおり、拍の頭(1拍目)はアクセント音のまま維持する。
+  const clicksDuringPerformance = Math.ceil(totalDurSec/clickInterval) + 1;
+  const totalClicks = exTimeSigBeats + clicksDuringPerformance;
+  exExecScheduledOscillators = [];
+  for(let i=0;i<totalClicks;i++){
+    const osc = playCalibClick(countInStart + i*clickInterval, (i % exTimeSigBeats)===0);
+    if(osc) exExecScheduledOscillators.push(osc);
+  }
+  exExecStartAudioTime = countInStart + exTimeSigBeats*clickInterval;
+  exExecPrevHasSignal = false;
+  exExecLastNi = null; exExecLastOct = null;
+
+  practiceModeBeforeExercise = practiceMode;
+  practiceMode = 'exercise';
+  exExecActive = true;
+  updateExExecUIRunning(true);
+  renderExExecLive(0, exExecResults.length, exExecResults[0]?exExecResults[0].label+exExecResults[0].oct:'-');
+  renderExExecStatus('カウントイン中…');
+
+  const untilStartMs = Math.max(0, (exExecStartAudioTime - audioCtx.currentTime)*1000);
+  exExecCountInTimerId = setTimeout(()=>{ if(exExecActive) renderExExecStatus('演奏中…'); }, untilStartMs);
+
+  const finishDelayMs = untilStartMs + totalDurSec*1000 + 500;
+  exExecFinishTimerId = setTimeout(()=>finishExerciseExecution(), finishDelayMs);
+}
+
+function cancelExerciseExecution(){
+  if(!exExecActive) return;
+  clearTimeout(exExecFinishTimerId);
+  clearTimeout(exExecCountInTimerId);
+  stopAllScheduledExecClicks();
+  exExecActive=false;
+  practiceMode = practiceModeBeforeExercise;
+  practiceModeBeforeExercise = null;
+  updateExExecUIRunning(false);
+  renderExExecStatus('中断しました');
+}
+
+// loop()から毎フレーム呼ばれる。オンセット(無音→有音)検出と、その時点のピッチ情報を使って
+// 「一番近い未記録のイベント」に採点結果を割り当てる(ズレ補正にはキャリブレーション値を使用)。
+function tickExerciseExecutionFrame(info, nowAudioTime, hasSignal){
+  const elapsed = nowAudioTime - exExecStartAudioTime;
+  // 「オンセット」は無音→有音の切り替わりだけでなく、無音を挟まずに音が変わった瞬間
+  // (タンギングで区切られてはいるが完全な無音までは落ちない、休符なしの連続した音符列)も含める。
+  // そうしないと、休符を含まないリズムパターン(既定の「均等」プリセットなど)では
+  // 最初の1音しかオンセットを検出できず、以降の音がすべて未検出/誤割り当てになってしまう。
+  let isNoteChange = false;
+  if(hasSignal && info){
+    if(!exExecPrevHasSignal) isNoteChange = true;
+    else if(exExecLastNi!==null && (info.ni!==exExecLastNi || info.oct!==exExecLastOct)) isNoteChange = true;
+    exExecLastNi = info.ni; exExecLastOct = info.oct;
+  } else {
+    exExecLastNi = null; exExecLastOct = null;
+  }
+  if(isNoteChange && elapsed>=-0.3 && info){
+    const correctedElapsed = elapsed - (pitchLatencyMs/1000);
+    let best=-1, bestAbs=Infinity;
+    exExecResults.forEach((r,ri)=>{
+      if(r.actualOnsetSec!==null) return;
+      const diff = Math.abs(correctedElapsed - r.idealOnsetSec);
+      if(diff<bestAbs){ bestAbs=diff; best=ri; }
+    });
+    if(best>=0){
+      const r=exExecResults[best];
+      r.actualOnsetSec = correctedElapsed;
+      r.deviationMs = Math.round((correctedElapsed - r.idealOnsetSec)*1000);
+      r.matched = (info.ni===r.ni && info.oct===r.oct);
+      r.cents = info.cents;
+      r.detectedLabel = NLABELS[info.ni]+info.oct;
+      const nextUnfilled = exExecResults.findIndex(x=>x.actualOnsetSec===null);
+      renderExExecLive(
+        nextUnfilled>=0?nextUnfilled:exExecResults.length-1,
+        exExecResults.length,
+        nextUnfilled>=0 ? (exExecResults[nextUnfilled].label+exExecResults[nextUnfilled].oct) : '完了間近'
+      );
+    }
+  }
+  exExecPrevHasSignal = hasSignal;
+}
+
+function finishExerciseExecution(){
+  if(!exExecActive) return;
+  exExecScheduledOscillators = []; // 予定した回数どおり鳴り終えている想定なので、参照だけ破棄する
+  exExecActive = false;
+  practiceMode = practiceModeBeforeExercise;
+  practiceModeBeforeExercise = null;
+  updateExExecUIRunning(false);
+  renderExExecStatus('演奏終了。結果を確認してください。');
+
+  // ピッチの正確さは、演奏中ずっとpracticeMode='exercise'にしていたことで、
+  // loop()の既存ロジック(Phase3)が毎フレーム自動的に「苦手な音リスト」へ蓄積している。
+  // リズムのタイミングはこの回限りのレビューのみで、統計には蓄積しない(仕様通り)。
+
+  const nameInput=document.getElementById('exNameInput');
+  showExerciseReview({
+    exerciseName: (nameInput&&nameInput.value)||'(無題の課題)',
+    bpm: exBpm, timeSigBeats: exTimeSigBeats, timeSigUnit: exTimeSigUnit,
+    events: exExecEvents.slice(),
+    results: exExecResults.map(r=>({...r})),
+    latencyMsUsed: pitchLatencyMs
+  });
+}
+
+// ── レビュー画面 ──
+function devSeverity(r){
+  if(r.actualOnsetSec===null) return 'bad';
+  if(!r.matched) return 'bad';
+  const a=Math.abs(r.deviationMs);
+  if(a<=50) return 'ok';
+  if(a<=150) return 'warn';
+  return 'bad';
+}
+function showExerciseReview(data){
+  const modal=document.getElementById('exerciseReviewModal');
+  if(!modal) return;
+  const results=data.results;
+  const detected=results.filter(r=>r.actualOnsetSec!==null);
+  const matchedCount=results.filter(r=>r.matched).length;
+  const avgDevMs = detected.length ? Math.round(detected.reduce((a,r)=>a+Math.abs(r.deviationMs),0)/detected.length) : null;
+  const summaryEl=document.getElementById('exReviewSummary');
+  if(summaryEl){
+    summaryEl.textContent = data.exerciseName+' ・ '+data.bpm+'BPM ・ '
+      +'音程一致 '+matchedCount+'/'+results.length
+      +' ・ 検出 '+detected.length+'/'+results.length
+      +(avgDevMs!=null ? ' ・ 平均タイミングズレ '+avgDevMs+'ms' : '');
+  }
+  drawExerciseReviewCanvas(data);
+  renderExReviewList(data);
+  modal.style.display='flex';
+}
+function closeExerciseReview(){
+  const modal=document.getElementById('exerciseReviewModal');
+  if(modal) modal.style.display='none';
+}
+function drawExerciseReviewCanvas(data){
+  const cv=document.getElementById('exReviewCanvas');
+  if(!cv) return;
+  const wrap=cv.parentElement;
+  const totalSec = data.events.length ? data.events[data.events.length-1].idealOffsetSec : 1;
+  const pxPerSec = 90;
+  const W = Math.max(wrap.clientWidth||300, Math.ceil(totalSec*pxPerSec)+40);
+  const H = 130;
+  const dpr = window.devicePixelRatio||1;
+  cv.style.width=W+'px'; cv.style.height=H+'px';
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  const ctx=cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const padL=10, baseY=90;
+  const xOf = sec => padL + sec*pxPerSec;
+
+  // 理想タイミングの縦線(休符含む全イベント境界)
+  ctx.strokeStyle='rgba(174,174,178,0.35)';
+  ctx.lineWidth=1;
+  ctx.font='10px -apple-system,sans-serif';
+  data.events.forEach(e=>{
+    const x=xOf(e.idealOnsetSec);
+    ctx.beginPath(); ctx.moveTo(x,20); ctx.lineTo(x,baseY); ctx.stroke();
+    if(!e.rest && e.label){
+      ctx.fillStyle='rgba(255,255,255,0.55)';
+      ctx.fillText(e.label+e.oct, x+2, 14);
+    }
+  });
+  // 基準線(タイミングが合っている水平ライン)
+  ctx.strokeStyle='rgba(255,255,255,0.15)';
+  ctx.beginPath(); ctx.moveTo(padL, baseY); ctx.lineTo(xOf(totalSec)+20, baseY); ctx.stroke();
+
+  // 実測オンセットのマーカー(色分け: green/yel/red) + 未検出は基準時刻の位置に赤い✕
+  data.results.forEach(r=>{
+    const sev = devSeverity(r);
+    const color = sev==='ok' ? getComputedStyle(document.documentElement).getPropertyValue('--green')
+                : sev==='warn' ? getComputedStyle(document.documentElement).getPropertyValue('--yel')
+                : getComputedStyle(document.documentElement).getPropertyValue('--red');
+    if(r.actualOnsetSec===null){
+      const x=xOf(r.idealOnsetSec);
+      ctx.strokeStyle=color.trim(); ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x-4,baseY-4); ctx.lineTo(x+4,baseY+4);
+      ctx.moveTo(x+4,baseY-4); ctx.lineTo(x-4,baseY+4); ctx.stroke();
+      return;
+    }
+    const x=xOf(r.actualOnsetSec);
+    ctx.fillStyle=color.trim();
+    ctx.beginPath(); ctx.arc(x, baseY, 5, 0, Math.PI*2); ctx.fill();
+    // ズレ量を短いテキストで添える
+    ctx.fillStyle='rgba(255,255,255,0.6)';
+    ctx.fillText((r.deviationMs>=0?'+':'')+r.deviationMs+'ms', x-10, baseY+18);
+  });
+}
+function renderExReviewList(data){
+  const el=document.getElementById('exReviewList');
+  if(!el) return;
+  el.innerHTML = data.results.map(r=>{
+    const sev = devSeverity(r);
+    const devText = r.actualOnsetSec===null ? '未検出' : ((r.deviationMs>=0?'+':'')+r.deviationMs+'ms');
+    const pitchText = r.actualOnsetSec===null ? '' : (r.matched ? '音程一致' : ('音程違い('+r.detectedLabel+')'));
+    return `<div class="ex-review-row ${sev}">
+      <span class="ex-review-note">${escapeHtml(r.label||'')}${r.oct!=null?r.oct:''}</span>
+      <span>${pitchText}</span>
+      <span class="ex-review-dev">${devText}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderExTimeSigRow(){
+  const el=document.getElementById('exTimeSigRow');
+  if(!el) return;
+  el.innerHTML = EX_TIME_SIGS.map((ts,i)=>
+    `<button type="button" class="chip${(ts.beats===exTimeSigBeats&&ts.unit===exTimeSigUnit)?' on':''}" data-i="${i}">${ts.label}</button>`
+  ).join('');
+  el.querySelectorAll('.chip').forEach(b=>b.addEventListener('click', ()=>{
+    const ts=EX_TIME_SIGS[parseInt(b.dataset.i,10)];
+    exTimeSigBeats=ts.beats; exTimeSigUnit=ts.unit;
+    el.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+  }));
+}
+
+// リズムパターンのプリセット生成(拍子の拍数ぶんの音価配列を作る。あくまで叩き台で、
+// 生成後は1コマずつ自由に音価変更・休符化・追加削除・コピペできる)
+// 吹奏楽の基礎合奏でよく使う定番パターンを一通り揃えている。
+function rhythmPresetCells(kind){
+  const beats=exTimeSigBeats;
+  const base = exTimeSigUnit===8 ? 0.5 : 1; // 分母8の拍子は8分音符を1拍として扱う
+  switch(kind){
+    case 'even':
+      return Array.from({length:beats}, ()=>({dur:base, rest:false}));
+    case 'double':
+      return Array.from({length:beats*2}, ()=>({dur:base/2, rest:false}));
+    case 'dotted':
+      return Array.from({length:beats}, ()=>[{dur:base*1.5,rest:false},{dur:base*0.5,rest:false}]).flat();
+    case 'swing':
+      // 付点8分+16分(または付点16分+32分)のペアを拍数分繰り返す、いわゆる「スウィング」の刻み
+      return Array.from({length:beats}, ()=>[{dur:base*0.75,rest:false},{dur:base*0.25,rest:false}]).flat();
+    case 'syncopation':
+      // 短-長-短(裏拍を強調する定番シンコペーション)を拍数分繰り返す
+      return Array.from({length:beats}, ()=>[{dur:base*0.5,rest:false},{dur:base,rest:false},{dur:base*0.5,rest:false}]).flat();
+    case 'tantata':
+      // 定番「タンタンタタタン」(4分・4分・8分・8分・4分)。小節の長さに近づくまで繰り返す
+      { const cell=[{dur:base,rest:false},{dur:base,rest:false},{dur:base*0.5,rest:false},{dur:base*0.5,rest:false},{dur:base,rest:false}];
+        const cellLen=cell.reduce((a,c)=>a+c.dur,0);
+        const repeats=Math.max(1, Math.round((beats*base)/cellLen));
+        return Array.from({length:repeats}, ()=>cell.map(c=>({...c}))).flat();
+      }
+    case 'triplet':
+      // 1拍を3等分する3連符を拍数分
+      return Array.from({length:beats*3}, ()=>({dur:1/3, rest:false}));
+    case 'restEntry':
+      // 休符から始まる/休符を挟む練習用(1拍おきに休符)
+      return Array.from({length:beats}, (_,i)=> i%2===0 ? {dur:base, rest:true} : {dur:base, rest:false});
+    case 'sixteenths':
+      return Array.from({length:beats*4}, ()=>({dur:base/4, rest:false}));
+    case 'whole':
+      return [{dur:base*beats, rest:false}];
+    default:
+      return [];
+  }
+}
+function applyRhythmPreset(kind){
+  exRhythmPattern = rhythmPresetCells(kind);
+  renderRhythmEditor();
+}
+function addRhythmCell(){
+  exRhythmPattern.push({dur: exTimeSigUnit===8?0.5:1, rest:false});
+  renderRhythmEditor();
+}
+function clearRhythmPattern(){ exRhythmPattern=[]; renderRhythmEditor(); }
+// パターン全体を複製して2倍の長さにする(複数小節分のリズムを作るときに繰り返し押して伸ばせる)
+function duplicateRhythmPattern(){
+  if(exRhythmPattern.length===0){ toast('複製するパターンがありません'); return; }
+  const clone=exRhythmPattern.map(c=>({...c}));
+  exRhythmPattern=exRhythmPattern.concat(clone);
+  renderRhythmEditor();
+  toast('パターンを複製しました('+exRhythmPattern.length+'コマ)');
+}
+// 個別コマのコピー&ペースト用クリップボード(1コマ分の{dur,rest}を保持)
+let exRhythmClipboardCell = null;
+function pasteRhythmCellAtEnd(){
+  if(!exRhythmClipboardCell){ toast('コピーされたコマがありません(各コマの📋でコピーしてください)'); return; }
+  exRhythmPattern.push({...exRhythmClipboardCell});
+  renderRhythmEditor();
+}
+function renderRhythmEditor(){
+  const el=document.getElementById('exRhythmEditor');
+  if(!el) return;
+  if(exRhythmPattern.length===0){
+    el.innerHTML='<span class="note-stats-empty">コマがありません(上のプリセットか「+ コマを追加」から作成してください)</span>';
+    syncExCountStatus();
+    return;
+  }
+  el.innerHTML = exRhythmPattern.map((c,i)=>{
+    const glyph = rhythmDurGlyph(c.dur);
+    // 音価バー: 全音符=100%を基準に、平方根スケールで長さを視覚化(線形だと16分音符などの短い音価が
+    // ほぼ見えなくなってしまうため、短い音価側の差も見分けやすいようsqrtスケールにしている)
+    const pct = Math.max(12, Math.min(100, Math.round(Math.sqrt(c.dur/4)*100)));
+    return `
+    <div class="rhythm-cell${c.rest?' rest':''}" data-i="${i}">
+      <button type="button" class="rhythm-cell-dur" data-act="cycle" data-i="${i}">${glyph?glyph+' ':''}${rhythmDurLabel(c.dur)}</button>
+      <div class="rhythm-cell-bar-track" title="音価の長さ(視覚化)"><div class="rhythm-cell-bar-fill" style="width:${pct}%"></div></div>
+      <button type="button" class="rhythm-cell-rest" data-act="rest" data-i="${i}">${c.rest?'休符':'音符'}</button>
+      <div class="rhythm-cell-actions">
+        <button type="button" class="rhythm-cell-copy" data-act="copy" data-i="${i}" title="このコマをコピー">📋</button>
+        <button type="button" class="rhythm-cell-paste" data-act="pasteAfter" data-i="${i}" title="この後ろに貼り付け">📥</button>
+        <button type="button" class="rhythm-cell-del" data-act="del" data-i="${i}" title="削除">×</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-act="cycle"]').forEach(b=>b.addEventListener('click', ()=>{
+    const i=parseInt(b.dataset.i,10); exRhythmPattern[i].dur=cycleRhythmDur(exRhythmPattern[i].dur); renderRhythmEditor();
+  }));
+  el.querySelectorAll('[data-act="rest"]').forEach(b=>b.addEventListener('click', ()=>{
+    const i=parseInt(b.dataset.i,10); exRhythmPattern[i].rest=!exRhythmPattern[i].rest; renderRhythmEditor();
+  }));
+  el.querySelectorAll('[data-act="del"]').forEach(b=>b.addEventListener('click', ()=>{
+    const i=parseInt(b.dataset.i,10); exRhythmPattern.splice(i,1); renderRhythmEditor();
+  }));
+  el.querySelectorAll('[data-act="copy"]').forEach(b=>b.addEventListener('click', ()=>{
+    const i=parseInt(b.dataset.i,10);
+    exRhythmClipboardCell={...exRhythmPattern[i]};
+    toast('コマをコピーしました('+rhythmDurLabel(exRhythmClipboardCell.dur)+(exRhythmClipboardCell.rest?'・休符':'')+')');
+  }));
+  el.querySelectorAll('[data-act="pasteAfter"]').forEach(b=>b.addEventListener('click', ()=>{
+    if(!exRhythmClipboardCell){ toast('コピーされたコマがありません(まず📋でコピーしてください)'); return; }
+    const i=parseInt(b.dataset.i,10);
+    exRhythmPattern.splice(i+1, 0, {...exRhythmClipboardCell});
+    renderRhythmEditor();
+  }));
+  syncExCountStatus();
+}
+
+// 汎用鍵盤描画(スケール画面のハイライト機能とは無関係。タップ時の挙動だけ外から渡す)
+function renderGenericKeyboard(containerId, onTap){
+  const wrap=document.getElementById(containerId);
+  if(!wrap) return;
+  const keys=buildKeyboardKeys();
+  wrap.innerHTML = keys.map(k=>{
+    const cls=['pkey']; if(k.isBlack) cls.push('black');
+    return `<button type="button" class="${cls.join(' ')}" data-ni="${k.ni}" data-oct="${k.oct}">${escapeHtml(labelForKey(k.ni))}<small>${k.oct}</small></button>`;
+  }).join('');
+  wrap.querySelectorAll('.pkey').forEach(btn=>{
+    btn.addEventListener('click', ()=>onTap(parseInt(btn.dataset.ni,10), parseInt(btn.dataset.oct,10), btn));
+  });
+}
+function scrollGenericKeyboardToOctave(containerId, oct){
+  const wrap=document.getElementById(containerId);
+  if(!wrap) return;
+  const target=wrap.querySelector(`.pkey[data-oct="${oct}"]:not(.black)`);
+  if(target) target.scrollIntoView({inline:'start', block:'nearest'});
+}
+function toggleExTapBuild(btn){
+  exTapBuildActive=!exTapBuildActive;
+  btn.classList.toggle('on', exTapBuildActive);
+  btn.textContent = exTapBuildActive ? '🎹 タップで追加中(もう一度押すと終了)' : '🎹 鍵盤タップで音を追加';
+}
+async function onExKeyboardTap(ni, oct, btn){
+  await previewKeyTone(ni, oct, btn);
+  if(exTapBuildActive) appendExNote(ni, oct);
+}
+function appendExNote(ni, oct){
+  if(exNoteSeq.length>=40){ toast('音の配列は40音までです'); return; }
+  exNoteSeq.push({ni, oct, label:labelForKey(ni)});
+  renderExNoteSeqPreview();
+}
+function undoExNote(){ exNoteSeq.pop(); renderExNoteSeqPreview(); }
+function clearExNoteSeq(){ exNoteSeq=[]; renderExNoteSeqPreview(); }
+function renderExNoteSeqPreview(){
+  const el=document.getElementById('exNoteSeqPreview');
+  if(!el) return;
+  if(exNoteSeq.length===0){ el.innerHTML='<span class="note-stats-empty">まだ音がありません</span>'; syncExCountStatus(); return; }
+  el.innerHTML = exNoteSeq.map(n=>`<span class="custom-note-chip">${escapeHtml(n.label)}${n.oct}</span>`).join('');
+  syncExCountStatus();
+}
+
+// 保存前チェック: リズムの「音符」コマ数(休符を除く)と、音の配列パターンの音数が一致しているか。
+// 不一致でも自動調整はせず、警告して修正を促す(仕様通り)。
+function syncExCountStatus(){
+  const el=document.getElementById('exCountStatus');
+  const needed = exRhythmPattern.filter(c=>!c.rest).length;
+  const have = exNoteSeq.length;
+  const ok = needed===have;
+  if(el){
+    el.textContent = `リズムのコマ数(休符除く): ${needed} / 音の数: ${have}` + (ok ? '  ✓ 一致しています' : '  ⚠ 数が一致していません(修正してください)');
+    el.classList.toggle('mismatch', !ok);
+  }
+  return ok;
+}
+
+function saveExercise(){
+  const nameInput=document.getElementById('exNameInput');
+  const name=(nameInput && nameInput.value || '').trim();
+  if(!name){ toast('課題名を入力してください'); return; }
+  if(exRhythmPattern.length===0){ toast('リズムパターンがありません'); return; }
+  if(exNoteSeq.length===0){ toast('音の配列パターンがありません'); return; }
+  if(!syncExCountStatus()){
+    toast('⚠ リズムのコマ数と音の数が一致していません。修正してから保存してください');
+    return;
+  }
+  const id='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  const rec={
+    id, name,
+    primaryKind:exPrimaryKind, minorVariant:exMinorVariant, tonicPc:exTonicPc, baseOct:exBaseOct,
+    bpm:exBpm, timeSigBeats:exTimeSigBeats, timeSigUnit:exTimeSigUnit,
+    rhythm:exRhythmPattern.slice(), notes:exNoteSeq.slice(),
+    createdAt:Date.now()
+  };
+  exercises[id]=rec;
+  if(noteStatsDB){
+    try{
+      const tx=noteStatsDB.transaction(EXERCISE_STORE,'readwrite');
+      tx.objectStore(EXERCISE_STORE).put(rec);
+    }catch(e){ console.warn('exercise save failed', e); }
+  }
+  renderExerciseList();
+  if(nameInput) nameInput.value='';
+  toast('保存しました: '+name);
+}
+function loadAllExercises(){
+  return new Promise((resolve)=>{
+    if(!noteStatsDB){ resolve(); return; }
+    const tx=noteStatsDB.transaction(EXERCISE_STORE, 'readonly');
+    const req=tx.objectStore(EXERCISE_STORE).getAll();
+    req.onsuccess=()=>{
+      exercises={};
+      (req.result||[]).forEach(r=>{ exercises[r.id]=r; });
+      renderExerciseList();
+      resolve();
+    };
+    req.onerror=()=>resolve();
+  });
+}
+function renderExerciseList(){
+  const el=document.getElementById('exerciseList');
+  if(!el) return;
+  const list=Object.values(exercises).sort((a,b)=>b.createdAt-a.createdAt);
+  if(list.length===0){ el.innerHTML='<div class="note-stats-empty">保存された課題はありません</div>'; return; }
+  el.innerHTML=list.map(r=>`
+    <div class="custom-scale-row">
+      <span class="custom-scale-name">${escapeHtml(r.name)}</span>
+      <span class="custom-scale-count">${r.bpm}BPM・${r.notes.length}音</span>
+      <button type="button" class="custom-scale-load-btn" data-act="load" data-id="${r.id}">読込</button>
+      <button type="button" class="custom-scale-del-btn" data-act="del" data-id="${r.id}">🗑</button>
+    </div>`).join('');
+  el.querySelectorAll('[data-act="load"]').forEach(b=>b.addEventListener('click', ()=>loadExercise(b.dataset.id)));
+  el.querySelectorAll('[data-act="del"]').forEach(b=>b.addEventListener('click', ()=>deleteExercise(b.dataset.id)));
+}
+function loadExercise(id){
+  const rec=exercises[id];
+  if(!rec) return;
+  exPrimaryKind=rec.primaryKind; exMinorVariant=rec.minorVariant; exTonicPc=rec.tonicPc;
+  exBaseOct = rec.baseOct || 4;
+  exBpm=rec.bpm; exTimeSigBeats=rec.timeSigBeats; exTimeSigUnit=rec.timeSigUnit;
+  exRhythmPattern=rec.rhythm.map(c=>({...c}));
+  exNoteSeq=rec.notes.slice();
+
+  document.querySelectorAll('[data-ex-kind]').forEach(b=>b.classList.toggle('on', b.dataset.exKind===exPrimaryKind));
+  document.getElementById('exMinorVariantRow').style.display = (exPrimaryKind==='minor') ? 'flex' : 'none';
+  document.querySelectorAll('[data-ex-minor]').forEach(b=>b.classList.toggle('on', b.dataset.exMinor===exMinorVariant));
+  document.querySelectorAll('[data-ex-tonic-pc]').forEach(b=>b.classList.toggle('on', parseInt(b.dataset.exTonicPc,10)===exTonicPc));
+  renderExTonicLabels();
+  renderExBpm();
+  renderExTimeSigRow();
+  const exOctLbl=document.getElementById('exBaseOctLabel');
+  if(exOctLbl) exOctLbl.textContent=String(exBaseOct);
+  renderRhythmEditor();
+  renderExNoteSeqPreview();
+  const nameInput=document.getElementById('exNameInput');
+  if(nameInput) nameInput.value=rec.name;
+  toast('読み込みました: '+rec.name);
+}
+function deleteExercise(id){
+  if(!confirm('この課題を削除しますか？')) return;
+  delete exercises[id];
+  if(noteStatsDB){
+    try{
+      const tx=noteStatsDB.transaction(EXERCISE_STORE, 'readwrite');
+      tx.objectStore(EXERCISE_STORE).delete(id);
+    }catch(e){ console.warn('exercise delete failed', e); }
+  }
+  renderExerciseList();
+}
+
+// IndexedDB読み込み前でも「--」でリストの枠が見えるようにしておく
+renderLongtoneBestDisplay();
+
+// 起動時にIndexedDBから集計値/自己ベスト/カスタム音列を読み込む
+openNoteStatsDB().then(db=>{
+  noteStatsDB=db;
+  return Promise.all([loadAllNoteStats(), loadLongtoneBests(), loadAllCustomScales(), loadAllExercises()]);
+}).catch(e=>{
+  console.warn('noteStats DB init failed(IndexedDB unavailable?)', e);
+});
 
 // ══════════════════════════════════════
 //  PANEL / TAB
@@ -789,7 +3596,13 @@ function lineColor(c){
   return a<10?'#32d74b':a<25?'#ffd60a':'#ff453a';
 }
 
+// Phase6: 表示モードに応じてピッチグラフ/音量(エンベロープ)グラフを切り替えて描画する
 function drawGraph(){
+  if(graphDisplayMode==='envelope') drawEnvelopeGraph();
+  else drawPitchGraph();
+}
+
+function drawPitchGraph(){
   if(CW<1||CH<1) return;
   g.clearRect(0,0,CW,CH);
 
@@ -856,7 +3669,7 @@ function drawGraph(){
   g.fillText('0', 4, cy(0));
 
   // ── 折れ線 ──
-  const visible = history.slice(HIST_MAX - VIEW);  // 末尾VIEW個を表示
+  const visible = visibleCentsFromHistory();  // historyExt からcentsのみ抽出(末尾VIEW個)
   const pxPerSample = CW / VIEW;
   let px=null, py=null, pc=null;
 
@@ -891,11 +3704,262 @@ function drawGraph(){
     px=x;py=ycur;pc=val;
   }
 
-  // 右端NOW
-  g.strokeStyle='#2a2a2c';g.lineWidth=1;
-  g.setLineDash([3,5]);
-  g.beginPath();g.moveTo(CW-1,0);g.lineTo(CW-1,CH);g.stroke();
-  g.setLineDash([]);
+  // 右端NOW（過去に遡り中は「今」ではないため非表示）
+  if(scrollIndexOffset === 0){
+    g.strokeStyle='#2a2a2c';g.lineWidth=1;
+    g.setLineDash([3,5]);
+    g.beginPath();g.moveTo(CW-1,0);g.lineTo(CW-1,CH);g.stroke();
+    g.setLineDash([]);
+  }
+}
+
+// ══════════════════════════════════════
+//  Phase6: 音量の時間変化(エンベロープ)表示
+//  ・historyExtのampDb(Phase1でupdateMicMeter()の値をそのまま流用)を可視化する
+//  ・ピッチグラフと同じgetVisibleHistorySlice()/scrollIndexOffsetを共有するため、
+//    時間軸・スクロール位置(Phase2の遡り)が自然に一致する
+//  (1音ごと自動検出モードは廃止し、常時スクロール表示のみとした)
+// ══════════════════════════════════════
+let graphDisplayMode = 'pitch';   // 'pitch' | 'envelope'
+let envelopeYScale    = 'linear'; // 'db' | 'linear' (デフォルトはリニア表示。dB表示は選択時のみ)
+
+// 常時スクロールモード専用のバッファ。
+// ピッチのタイムライン(historyExt)と同期させるため、基本はhistoryExtと同じく
+// 「音が鳴っているフレームだけ追記し、無音中は追記しない(=静止する)」を踏襲する。
+// ただし音が止まった瞬間だけは、無音フロア付近に落ち着くまでの短い「リリース尾」を追記し、
+// 減衰の様子を見えるようにしてから、ピッチと同じく静止する。無音が続く間は一切追記しないため、
+// 音が再開すればピッチグラフとまったく同じフレームで一緒に動き出す。
+let envelopeExt = []; // [{t, ampDb, hasSignal}, ...]
+let envelopeTailActive = false; // 現在「リリース尾」を記録中かどうか
+let envelopeTailStartT = null;
+const ENVELOPE_TAIL_MAX_SEC = 0.6;    // リリース尾の最大記録時間(暴走防止)
+const ENVELOPE_TAIL_FLOOR_MARGIN = 3; // フロア+この値(dB)以下になったら尾の記録を終える
+
+function pushEnvelopeExt(entry){
+  envelopeExt.push(entry);
+  const cutoff = entry.t - HISTORY_RETENTION_SEC;
+  let drop=0;
+  while(drop<envelopeExt.length && envelopeExt[drop].t<cutoff) drop++;
+  if(drop>0) envelopeExt.splice(0,drop);
+}
+function clearEnvelopeExt(){
+  envelopeExt=[]; envelopeTailActive=false; envelopeTailStartT=null;
+}
+
+// 毎フレーム呼び出し: 音が鳴っている間はそのまま追記、無音になった直後はフロア付近に
+// 落ち着くまでの短い尾だけ追記してから凍結する(=ピッチのタイムラインと同じ「静止」に揃う)
+function tickEnvelopeScrollBuffer(hasSignal, tSec){
+  if(hasSignal){
+    pushEnvelopeExt({t:tSec, ampDb:lastAmpDb, hasSignal:true});
+    envelopeTailActive=false; envelopeTailStartT=null;
+    return;
+  }
+  const wasSounding = envelopeExt.length>0 && envelopeExt[envelopeExt.length-1].hasSignal;
+  if(wasSounding){
+    // ちょうど無音に切り替わった最初のフレーム → リリース尾の記録を開始
+    envelopeTailActive=true;
+    envelopeTailStartT=tSec;
+  }
+  if(!envelopeTailActive) return; // すでに尾も終えて静止中 → 何も追記しない
+
+  const tailElapsed = tSec - envelopeTailStartT;
+  const reachedFloor = lastAmpDb <= (MIC_METER_FLOOR + ENVELOPE_TAIL_FLOOR_MARGIN);
+  pushEnvelopeExt({t:tSec, ampDb:lastAmpDb, hasSignal:false});
+  if(reachedFloor || tailElapsed>=ENVELOPE_TAIL_MAX_SEC){
+    envelopeTailActive=false; // フロアに到達 or 最大時間到達 → ここで静止(以後は無追記)
+  }
+}
+
+function setGraphDisplayMode(btn){
+  graphDisplayMode = btn.dataset.graphMode;
+  document.querySelectorAll('[data-graph-mode]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const sub=document.getElementById('envelopeSubCtrl');
+  if(sub) sub.style.display = graphDisplayMode==='envelope' ? 'flex' : 'none';
+  syncEnvCeilingCtrlVisibility();
+  drawGraph();
+}
+function setEnvelopeYScale(btn){
+  envelopeYScale = btn.dataset.envYscale;
+  document.querySelectorAll('[data-env-yscale]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  syncEnvCeilingCtrlVisibility();
+  drawGraph();
+}
+
+// リニアモード用「天井」の設定。
+// 0dBFS(クリップ寸前)を常に天井として正規化すると、通常の演奏音量(だいたい-30〜-10dB)は
+// 0〜1のうちごく下の方しか使わず、縦の変化がほとんど見えなくなってしまう。
+// そこでユーザーがスライダーで固定のdB値を「天井」として指定できるようにし、そこを基準に
+// 正規化する。天井が動き続けると逆に見づらくなるため、自動追従は行わない固定値方式のみとする。
+// dBメーター(既存のマイクメーター表示)を見ながらスライダーで直接合わせる想定。
+let envelopeLinearCeilingManualDb = -20; // 固定天井(dBFS)。実際に使いながら調整していく想定
+const ENV_CEILING_LS_KEY = 'tunerEnvCeiling'; // localStorage保存キー
+
+function loadEnvCeilingPrefs(){
+  try{
+    const raw = localStorage.getItem(ENV_CEILING_LS_KEY);
+    if(!raw) return;
+    const obj = JSON.parse(raw);
+    if(obj && isFinite(obj.manualDb)) envelopeLinearCeilingManualDb = Math.max(-50, Math.min(0, obj.manualDb));
+  }catch(e){ /* localStorage不可・データ破損時は既定値のまま続行 */ }
+}
+function saveEnvCeilingPrefs(){
+  try{
+    localStorage.setItem(ENV_CEILING_LS_KEY, JSON.stringify({ manualDb: envelopeLinearCeilingManualDb }));
+  }catch(e){ /* 保存できなくても動作自体は継続 */ }
+}
+
+function syncEnvCeilingCtrlVisibility(){
+  const wrap = document.getElementById('envCeilingCtrl');
+  if(!wrap) return;
+  const show = (graphDisplayMode==='envelope' && envelopeYScale==='linear');
+  wrap.style.display = show ? 'flex' : 'none';
+  const slider = document.getElementById('envCeilingSlider');
+  const label  = document.getElementById('envCeilingValueLabel');
+  if(slider) slider.value = String(envelopeLinearCeilingManualDb);
+  if(label)  label.textContent = `${envelopeLinearCeilingManualDb}dB`;
+}
+function setEnvelopeCeilingManualDb(val){
+  envelopeLinearCeilingManualDb = Math.max(-50, Math.min(0, Math.round(Number(val))));
+  const label = document.getElementById('envCeilingValueLabel');
+  if(label) label.textContent = `${envelopeLinearCeilingManualDb}dB`;
+  saveEnvCeilingPrefs();
+  drawGraph();
+}
+// ampDb(dBFS) → 現在のY軸モードでの表示値(dBモード: -60〜0 dBにクランプ / リニアモード: 0〜1)
+function envDbToDisplayVal(ampDb){
+  if(envelopeYScale==='db'){
+    return Math.max(MIC_METER_FLOOR, Math.min(0, isFinite(ampDb)?ampDb:MIC_METER_FLOOR));
+  }
+  // ユーザーが指定した固定値をそのまま天井(=1.0)とする(余白なし・予測しやすい挙動)
+  const lin = isFinite(ampDb) ? Math.pow(10, (ampDb - envelopeLinearCeilingManualDb)/20) : 0;
+  return Math.max(0, Math.min(1, lin));
+}
+// 表示値 → キャンバスY座標
+function envValToY(v, pad){
+  if(envelopeYScale==='db'){
+    return (CH-pad) - ((v-MIC_METER_FLOOR)/(0-MIC_METER_FLOOR))*(CH-2*pad);
+  }
+  return (CH-pad) - v*(CH-2*pad);
+}
+
+function drawEnvelopeGraph(){
+  if(CW<1||CH<1) return;
+  g.clearRect(0,0,CW,CH);
+  g.fillStyle='#080809'; g.fillRect(0,0,CW,CH);
+
+  const PAD=8;
+  // グリッド線 + Y軸ラベル
+  const gridVals = envelopeYScale==='db' ? [0,-10,-20,-30,-40,-50,-60] : [0,0.25,0.5,0.75,1.0];
+  const fontSize = Math.max(10, Math.min(13, CH/18));
+  g.font=`${fontSize}px -apple-system,sans-serif`;
+  g.textAlign='left'; g.textBaseline='middle';
+  gridVals.forEach(v=>{
+    const y=envValToY(v, PAD);
+    g.strokeStyle='#1e1e20'; g.lineWidth=1; g.setLineDash(v===0?[]:[6,6]);
+    g.beginPath(); g.moveTo(0,y); g.lineTo(CW,y); g.stroke(); g.setLineDash([]);
+    g.fillStyle='#3a3a3c';
+    const label = envelopeYScale==='db' ? (v===0?'0':v) : `${Math.round(v*100)}%`;
+    g.fillText(String(label), 4, y);
+  });
+  if(envelopeYScale==='linear'){
+    // 現在の天井(基準)レベルを右上に小さく表示する
+    g.fillStyle='#3a3a3c';
+    g.textAlign='right'; g.textBaseline='top';
+    g.fillText(`天井:${envelopeLinearCeilingManualDb}dB`, CW-4, 4);
+    g.textAlign='left'; g.textBaseline='middle';
+  }
+
+  drawEnvelopeScroll(PAD);
+}
+
+// 常時スクロールモード。
+// 重要: メインの表示部分はhistoryExt自体(getVisibleHistorySlice())をそのまま使う。
+// historyExtの各エントリは元々ampDbも保持している(Phase1)ため、ピッチグラフとまったく
+// 同じ窓(startIdx/endIdx・padCount・pxPerSample)を使えば、横軸は常にピッチと完全一致する。
+// (以前はenvelopeExt自身の件数でスライスしていたが、リリース尾の分だけ余分にサンプルが
+//  溜まってhistoryExtより密度が高くなり、同じVIEW件数でも実時間の幅が短くなって
+//  ピッチグラフとズレて見える、という不具合があったため、この方式に変更した)
+// 直近の無音への切り替わり(ライブ表示中のみ)だけ、historyExtには存在しない「リリース尾」
+// (減衰して無音に落ち着くまでの様子)をenvelopeExtから追加で継ぎ足して描画する。
+function drawEnvelopeScroll(PAD){
+  const {entries} = getVisibleHistorySlice();
+  const padCount = VIEW - entries.length;
+  const pxPerSample = CW / VIEW;
+
+  const pts = entries.map((e,i)=>({
+    x:(padCount+i)*pxPerSample,
+    y:envValToY(envDbToDisplayVal(e.ampDb), PAD)
+  }));
+
+  // ライブ表示中(遡っていない)の場合のみ、historyExtの最終点より後に記録された
+  // リリース尾(無音への減衰)をhistoryExtと同じpxPerSampleスケールで継ぎ足す
+  if(scrollIndexOffset===0){
+    const lastHistT = entries.length>0 ? entries[entries.length-1].time : null;
+    const tailEntries = envelopeExt.filter(e => !e.hasSignal && (lastHistT==null || e.t>lastHistT));
+    tailEntries.forEach((e,i)=>{
+      pts.push({ x:(padCount+entries.length+i)*pxPerSample, y:envValToY(envDbToDisplayVal(e.ampDb), PAD) });
+    });
+  }
+
+  if(pts.length===0) return;
+
+  // 塗りつぶし
+  g.beginPath();
+  g.moveTo(pts[0].x, CH);
+  pts.forEach(p=>g.lineTo(p.x,p.y));
+  g.lineTo(pts[pts.length-1].x, CH);
+  g.closePath();
+  g.fillStyle='rgba(10,132,255,0.20)';
+  g.fill();
+
+  // 折れ線
+  g.beginPath();
+  pts.forEach((p,i)=> i===0?g.moveTo(p.x,p.y):g.lineTo(p.x,p.y));
+  g.strokeStyle='#0a84ff'; g.lineWidth=2.2; g.lineCap='round'; g.lineJoin='round';
+  g.stroke();
+
+  // 右端NOW(過去に遡り中は非表示。ピッチグラフと同じ挙動)
+  if(scrollIndexOffset===0){
+    g.strokeStyle='#2a2a2c'; g.lineWidth=1; g.setLineDash([3,5]);
+    g.beginPath(); g.moveTo(CW-1,0); g.lineTo(CW-1,CH); g.stroke(); g.setLineDash([]);
+  }
+}
+
+// ══════════════════════════════════════
+//  MIC METER (dBFS + クリップ検知)
+// ══════════════════════════════════════
+const MIC_METER_FLOOR = -60; // これ以下は「無音」扱いでメーター0%
+function updateMicMeter(buf){
+  let sumSquares=0, peak=0;
+  for(let i=0;i<buf.length;i++){
+    const v=buf[i];
+    sumSquares+=v*v;
+    const av=v<0?-v:v;
+    if(av>peak) peak=av;
+  }
+  const rms=Math.sqrt(sumSquares/buf.length);
+  const dbfs=rms>0?20*Math.log10(rms):-Infinity;
+  lastAmpDb=dbfs; // Phase1: historyExt記録用に最新dBFSを保持
+  const isClipping=peak>=0.989; // 実質0dBFS付近をクリップ扱い
+
+  const clamped=Math.max(MIC_METER_FLOOR, isFinite(dbfs)?dbfs:MIC_METER_FLOOR);
+  const pct=((clamped-MIC_METER_FLOOR)/(-MIC_METER_FLOOR))*100;
+
+  const fillEl=document.getElementById('micMeterFill');
+  const lblEl=document.getElementById('micMeterLabel');
+  if(fillEl){
+    fillEl.style.width=pct.toFixed(1)+'%';
+    fillEl.classList.toggle('clip',isClipping);
+    if(!isClipping){
+      fillEl.style.background = pct>=90?'var(--red)' : pct>=66.7?'var(--yel)' : 'var(--green)';
+    }
+  }
+  if(lblEl){
+    lblEl.textContent = isClipping ? '⚠️ CLIP' : (isFinite(dbfs)?dbfs.toFixed(1)+' dBFS':'-- dBFS');
+    lblEl.classList.toggle('clip-warn',isClipping);
+  }
 }
 
 // ══════════════════════════════════════
@@ -961,6 +4025,13 @@ function freqToInfo(freq){
   return {ni, concertNi, oct, cents, freq};
 }
 
+// リニア表示の天井設定(自動/手動・手動値)を前回終了時の状態から復元しておく
+loadEnvCeilingPrefs();
+syncEnvCeilingCtrlVisibility();
+
+// ピッチ検出遅延キャリブレーションの補正値を前回計測時の状態から復元しておく
+loadPitchLatencyPrefs();
+
 // ══════════════════════════════════════
 //  MAIN LOOP
 // ══════════════════════════════════════
@@ -968,7 +4039,37 @@ function loop(){
   if(!isRunning) return;
   const buf=new Float32Array(analyser.fftSize);
   analyser.getFloatTimeDomainData(buf);
+  updateMicMeter(buf);
   const freq=autoCorrelate(buf,audioCtx.sampleRate);
+  const tSecNow = timelineBaseSec + (audioCtx.currentTime - sessionStartTime);
+
+  // Phase6: 常時スクロールモード用のenvelopeExt更新。
+  // ピッチのタイムライン(historyExt)と同期させるため、無音中は基本的に凍結(追記しない)。
+  // ただし音が止まった直後だけ、無音フロア付近に落ち着くまでの「リリース尾」を追記して
+  // 減衰の様子を見えるようにし、フロアに到達したらそこで一緒に静止する。
+  tickEnvelopeScrollBuffer(freq>0, tSecNow);
+
+  // 過去に遡ってグラフを検証している最中(scrollIndexOffset>0)に、無音→有音へ切り替わる
+  // (=新しく音を鳴らした)瞬間を検出したら、「最新へ戻る」を押したのと同じ状態に自動で戻す。
+  // そうしないと、遡ったままの位置から続きが描画されてしまい紛らわしいため。
+  if(freq>0 && !mainLoopPrevHasSignal && scrollIndexOffset>0){
+    scrollToLive();
+  }
+  mainLoopPrevHasSignal = freq>0;
+
+  // Phase7: キャリブレーション計測中は、無音→有音への切り替わり(=発音の立ち上がり)の
+  // 時刻をaudioCtx.currentTime基準で記録する(クリック音もaudioCtxで再生しているため、
+  // 同じ時計上で比較できる)。
+  if(calibActive){
+    if(freq>0 && !calibPrevHasSignal) calibOnsetTimes.push(audioCtx.currentTime);
+    calibPrevHasSignal = freq>0;
+  }
+
+  // Phase7: 課題実行中は、無音→有音の切り替わり(オンセット)とその瞬間のピッチ情報を使って
+  // 「理想タイミングに一番近い未記録のイベント」に採点結果を割り当てる。
+  if(exExecActive && freq<=0){
+    tickExerciseExecutionFrame(null, audioCtx.currentTime, false);
+  }
 
   if(freq>0){
     noSigFrames=0;
@@ -996,14 +4097,54 @@ function loop(){
 
     const info=freqToInfo(displayFreq);
     updateNoteUI(info);
-    history.shift();
-    history.push(info.cents);
+    const noteName = NLABELS[info.ni] + info.oct;
+    const tSec = tSecNow;
+    pushHistoryExt({
+      time: tSec,
+      cents: info.cents,
+      freq: info.freq,
+      note: noteName,
+      ampDb: lastAmpDb
+    });
+
+    // Phase7: 課題実行中のオンセット検出+採点(キャリブレーション補正込み)
+    if(exExecActive) tickExerciseExecutionFrame(info, audioCtx.currentTime, true);
+
+    // Phase3: 練習モード中(ロングトーン/スケール/課題)のみ、音名ごとの集計値を更新
+    if(practiceMode){
+      recordNoteStat(practiceMode, noteName, info.cents, tSec, currentSessionId);
+    }
+
+    // Phase4: ロングトーン練習画面の表示更新 + キープ判定(割合%)
+    updateLongtoneNoteDisplay(info);
+    if(longtoneAttemptActive) tickLongtoneAttempt(info.cents, true);
+
+    // Phase5: スケール練習画面のライブ表示 + 進行判定 / カスタム音列の録音抽出バッファ
+    updateScaleLiveDisplay(info);
+    tickScalePractice(info);
+    if(customRecordActive) customRecordBuffer.push({ni:info.ni, oct:info.oct, hasSignal:true, t:audioCtx.currentTime});
+
+    // 録音中(音声のみモード時): 時刻付きでピッチ履歴を記録(約20Hzに間引き)
+    // ※動画モードは波形がすでに映像に焼き込まれるため記録不要
+    if(isRecording&&!recordVideoMode){
+      const t=audioCtx.currentTime-recordingStartTime;
+      if(t-lastRecPushTime>=0.05){
+        recPitchHistory.push({time:t, cents:info.cents});
+        lastRecPushTime=t;
+      }
+    }
   } else {
     noSigFrames++;
     freqBuf=[];
     harmCount=0;
     // 無音でも表示・ロックを保持（最後の音名・Hz・緑点灯をそのまま残す）
-    // history 変更なし → グラフ静止
+    // historyExt 変更なし → グラフ静止
+
+    // Phase4: 無音中もキープ判定は継続(音が途切れた分は範囲外としてカウント)
+    if(longtoneAttemptActive) tickLongtoneAttempt(0, false);
+
+    // Phase5: 無音中もカスタム音列の録音抽出バッファには区切り情報として記録する
+    if(customRecordActive && audioCtx) customRecordBuffer.push({ni:-1, oct:-1, hasSignal:false, t:audioCtx.currentTime});
   }
 
   drawGraph();
@@ -1029,6 +4170,43 @@ function toggleMax(){
 
 // ESCキーで全画面解除
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&isMax)toggleMax();});
+
+// ══════════════════════════════════════
+//  Phase2: グラフエリアの横スワイプで過去に遡る
+//  ・リアルタイムのピッチ検出/描画ループ自体は止めない(表示だけが過去モードに切替)
+//  ・ドラッグ中は指の位置に最も近い1点のnoteのみをバッジ表示
+// ══════════════════════════════════════
+let dragActive=false, dragPointerId=null, dragStartX=0, dragStartOffset=0;
+
+cv.addEventListener('pointerdown', e=>{
+  if(e.pointerType==='mouse' && e.button!==0) return;
+  dragActive=true;
+  dragPointerId=e.pointerId;
+  dragStartX=e.clientX;
+  dragStartOffset=scrollIndexOffset;
+  try{ cv.setPointerCapture(e.pointerId); }catch(err){}
+});
+
+cv.addEventListener('pointermove', e=>{
+  if(!dragActive || e.pointerId!==dragPointerId) return;
+  const dx=e.clientX-dragStartX;
+  const pxPerSample=CW/VIEW;
+  const sampleShift=Math.round(dx/pxPerSample);
+  // 指を右へ動かす→さらに過去を表示(offset増加)、左へ戻す→現在に近づく
+  setScrollOffset(dragStartOffset + sampleShift);
+  const entry=historyEntryAtScreenX(e.clientX);
+  if(entry) showSwipeBadge(e.clientX, e.clientY, formatNoteForBadge(entry.note));
+  else hideSwipeBadge();
+});
+
+function endDrag(e){
+  if(!dragActive || (dragPointerId!==null && e.pointerId!==dragPointerId)) return;
+  dragActive=false;
+  dragPointerId=null;
+  hideSwipeBadge();
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
 
 // ══════════════════════════════════════
 //  NOTE UI + IN-TUNE
@@ -1084,6 +4262,12 @@ function clearNoteUI(){
   document.getElementById('hzLine').textContent='';
   setInTune(false);
   lockedFreq=null;harmCount=0;
+
+  // Phase4: ロングトーン練習画面側の表示もリセット
+  const ltNoteEl=document.getElementById('ltNote');
+  const ltCentsEl=document.getElementById('ltCents');
+  if(ltNoteEl){ ltNoteEl.textContent='－'; ltNoteEl.style.color='var(--green)'; }
+  if(ltCentsEl){ ltCentsEl.textContent=''; }
 }
 
 // ══════════════════════════════════════
@@ -1101,9 +4285,18 @@ async function startTuner(){
     analyser=audioCtx.createAnalyser();
     analyser.fftSize=2048;analyser.smoothingTimeConstant=0;
     micSrc=audioCtx.createMediaStreamSource(stream);
-    micSrc.connect(analyser);
-    isRunning=true;noSigFrames=0;freqBuf=[];lockedFreq=null;harmCount=0;
-    history.fill(null);
+    gainNode=audioCtx.createGain();
+    gainNode.gain.value=micGain;
+    micSrc.connect(gainNode);
+    gainNode.connect(analyser);
+    isRunning=true;noSigFrames=0;freqBuf=[];lockedFreq=null;harmCount=0;mainLoopPrevHasSignal=false;
+    sessionStartTime=audioCtx.currentTime;
+    currentSessionId=Date.now()+'-'+Math.random().toString(36).slice(2);
+    // 停止中に描画されていた波形/エンベロープはクリアせずそのまま残し、続きから再開する。
+    // (timelineBaseSecは停止時に積み上げ済みなので、ここではリセットしない)
+    scrollToLive(); // 再開時は念のためライブ表示に戻す(停止前に遡っていた場合の対策)
+    document.getElementById('micMeterWrap').style.display='flex';
+    document.getElementById('recBtn').disabled=false;
     const b=document.getElementById('startBtn');
     b.classList.add('stop');
     document.getElementById('sIco').textContent='⏹';
@@ -1116,19 +4309,319 @@ async function startTuner(){
 
 function stopTuner(){
   isRunning=false;
+  cancelRecordingIfActive();  // 録音中に停止された場合は破棄(プレビューは出さない)
+  if(longtoneAttemptActive) cancelLongtoneAttempt(); // マイク停止時は練習アテンプトも中断扱い
+  if(scaleSessionActive) stopScalePractice();        // マイク停止時はスケール練習も終了扱い
+  if(customRecordActive){ customRecordActive=false; updateCustomRecordBtnUI(); customRecordBuffer=[]; }
   if(isMax) toggleMax();  // 停止時は全画面モードを解除
   if(rafId) cancelAnimationFrame(rafId);
+  // 次に再開したときも波形のタイムラインが連続するよう、このセッションで経過した秒数を
+  // 積み上げておく(audioCtxを閉じるとcurrentTimeの基準が失われるため、閉じる前に計算する)
+  if(audioCtx) timelineBaseSec += (audioCtx.currentTime - sessionStartTime);
   if(micSrc) micSrc.disconnect();
+  if(gainNode) gainNode.disconnect();
   if(micStream) micStream.getTracks().forEach(t=>t.stop());
   if(audioCtx) audioCtx.close();
-  audioCtx=analyser=micSrc=micStream=null;
-  history.fill(null);
+  audioCtx=analyser=micSrc=micStream=gainNode=null;
+  if(statsFlushTimer){ clearTimeout(statsFlushTimer); statsFlushTimer=null; }
+  flushDirtyStats(); // 停止時に集計値を確実に永続化しておく
+  // 波形・エンベロープはクリアせず、停止した瞬間の状態のまま画面に残しておく
+  // (クリアしたい場合は「波形をクリア」ボタンでclearGraphData()を呼ぶ)
   setInTune(false);
   drawGraph();clearNoteUI();
+  document.getElementById('micMeterWrap').style.display='none';
+  document.getElementById('recBtn').disabled=true;
+  const micFillEl=document.getElementById('micMeterFill');
+  if(micFillEl){ micFillEl.style.width='0%'; micFillEl.classList.remove('clip'); }
+  const micLblEl=document.getElementById('micMeterLabel');
+  if(micLblEl){ micLblEl.textContent='-- dBFS'; micLblEl.classList.remove('clip-warn'); }
   const b=document.getElementById('startBtn');
   b.classList.remove('stop');
   document.getElementById('sIco').textContent='🎤';
   document.getElementById('sTxt').textContent='チューニング開始';
+}
+
+// 「波形をクリア」ボタン: 波形・エンベロープの履歴を明示的に消去する。
+// 停止/再開ではもう自動でクリアされなくなったため、消したい時のための専用ボタン。
+function clearGraphData(){
+  clearHistoryExt();
+  clearEnvelopeExt();
+  timelineBaseSec = 0; // タイムラインの基準も0に戻す
+  if(isRunning && audioCtx) sessionStartTime = audioCtx.currentTime; // 計測中ならその場から0で再スタート
+  drawGraph();
+}
+
+// ══════════════════════════════════════
+//  RECORDING（手動開始〜停止 → プレビュー → 保存/破棄）
+// ══════════════════════════════════════
+function toggleRecording(){
+  if(!isRunning) return;
+  isRecording ? stopRecording() : startRecording();
+}
+
+function supportsVideoRecording(){
+  return !!(cv.captureStream && window.MediaRecorder && (
+    MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ||
+    MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ||
+    MediaRecorder.isTypeSupported('video/webm') ||
+    MediaRecorder.isTypeSupported('video/mp4;codecs="avc1.42E01E,mp4a.40.2"') ||
+    MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ||
+    MediaRecorder.isTypeSupported('video/mp4')
+  ));
+}
+function toggleRecordVideoMode(btn){
+  if(isRecording) return; // 録音中はモード変更不可
+  if(!recordVideoMode&&!supportsVideoRecording()){
+    alert('お使いのブラウザでは動画での波形保存に対応していません。\n音声のみでの保存をご利用ください。');
+    return;
+  }
+  recordVideoMode=!recordVideoMode;
+  btn.textContent='🎬 波形も動画で保存: '+(recordVideoMode?'ON':'OFF');
+  btn.classList.toggle('on',recordVideoMode);
+}
+
+function startRecording(){
+  if(!isRunning||!audioCtx||!gainNode) return;
+  recordedChunks=[];
+  recPitchHistory=[];
+  lastRecPushTime=0;
+  recordingStartTime=audioCtx.currentTime;
+  lastRecordWasVideo=recordVideoMode;
+
+  // gainNode(ゲイン適用後の信号)からMediaStreamを取り出して録音
+  streamDest=audioCtx.createMediaStreamDestination();
+  gainNode.connect(streamDest);
+
+  if(recordVideoMode){
+    // ── 動画モード: 波形グラフのcanvasを映像として同時キャプチャし、音声と合成 ──
+    const canvasStream=cv.captureStream(30);
+    const videoTrack=canvasStream.getVideoTracks()[0];
+    const audioTrack=streamDest.stream.getAudioTracks()[0];
+    const combined=new MediaStream([videoTrack,audioTrack]);
+
+    // 優先順位: WebM(VP9→VP8→無指定) → MP4(H.264明示→無指定=Safariのネイティブ)
+    const videoMimeCandidates=[
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'video/mp4;codecs="avc1.42E01E,mp4a.40.2"', // H.264 Baseline + AAC-LC
+      'video/mp4;codecs=avc1',
+      'video/mp4', // Safariはここでネイティブに H.264/AAC を選択
+    ];
+    let vMime='';
+    if(window.MediaRecorder){
+      vMime=videoMimeCandidates.find(t=>MediaRecorder.isTypeSupported(t))||'';
+    }
+    try{
+      mediaRecorder=vMime
+        ? new MediaRecorder(combined,{mimeType:vMime,videoBitsPerSecond:2000000,audioBitsPerSecond:256000})
+        : new MediaRecorder(combined);
+    }catch(e){
+      mediaRecorder=new MediaRecorder(combined);
+    }
+    recMimeType=mediaRecorder.mimeType||vMime||'video/webm';
+  } else {
+    // ── 音声のみモード ──
+    let mimeType='audio/webm';
+    if(!(window.MediaRecorder&&MediaRecorder.isTypeSupported(mimeType))){
+      mimeType=(window.MediaRecorder&&MediaRecorder.isTypeSupported('audio/mp4'))?'audio/mp4':'';
+    }
+    try{
+      mediaRecorder=mimeType
+        ? new MediaRecorder(streamDest.stream,{mimeType,audioBitsPerSecond:256000})
+        : new MediaRecorder(streamDest.stream);
+    }catch(e){
+      mediaRecorder=new MediaRecorder(streamDest.stream);
+    }
+    recMimeType=mediaRecorder.mimeType||mimeType||'audio/webm';
+  }
+
+  mediaRecorder.ondataavailable=(e)=>{ if(e.data&&e.data.size>0) recordedChunks.push(e.data); };
+  mediaRecorder.start();
+  isRecording=true;
+  updateRecBtnUI();
+  if(recTimerId) clearInterval(recTimerId);
+  recTimerId=setInterval(updateRecElapsed,200);
+}
+
+function stopRecording(){
+  if(!mediaRecorder||!isRecording) return;
+  mediaRecorder.onstop=()=>{
+    detachStreamDest();
+    previewBlob=new Blob(recordedChunks,{type:recMimeType});
+    previewURL=URL.createObjectURL(previewBlob);
+    openRecPreview();
+  };
+  mediaRecorder.stop();
+  isRecording=false;
+  if(recTimerId){ clearInterval(recTimerId); recTimerId=null; }
+  updateRecBtnUI();
+}
+
+// チューナー自体が停止された場合など: プレビューを出さずに破棄
+function cancelRecordingIfActive(){
+  if(isRecording&&mediaRecorder){
+    mediaRecorder.onstop=null;
+    try{ mediaRecorder.stop(); }catch(e){}
+  }
+  isRecording=false;
+  if(recTimerId){ clearInterval(recTimerId); recTimerId=null; }
+  detachStreamDest();
+  recordedChunks=[];
+  updateRecBtnUI();
+}
+
+function detachStreamDest(){
+  if(streamDest){
+    try{ gainNode&&gainNode.disconnect(streamDest); }catch(e){}
+    streamDest=null;
+  }
+}
+
+function updateRecBtnUI(){
+  const btn=document.getElementById('recBtn');
+  if(!btn) return;
+  btn.classList.toggle('active',isRecording);
+  document.getElementById('recBtnIco').textContent=isRecording?'⏹':'⏺';
+  document.getElementById('recBtnTxt').textContent=isRecording?'0:00':'録音';
+  const modeBtn=document.getElementById('recModeBtn');
+  if(modeBtn) modeBtn.disabled=isRecording;
+}
+function updateRecElapsed(){
+  if(!isRecording||!audioCtx) return;
+  const elapsed=audioCtx.currentTime-recordingStartTime;
+  document.getElementById('recBtnTxt').textContent=formatRecTime(elapsed);
+  if(elapsed>=MAX_REC_SECONDS) stopRecording(); // 押し忘れ対策の安全装置
+}
+function formatRecTime(sec){
+  sec=Math.max(0,sec||0);
+  const m=Math.floor(sec/60), s=Math.floor(sec%60);
+  return m+':'+String(s).padStart(2,'0');
+}
+
+// ── プレビュー再生 ──
+const recCv=document.getElementById('recCanvas');
+const rg=recCv.getContext('2d');
+let recCW=300, recCH=140;
+
+function resizeRecCanvas(){
+  const r=recCv.getBoundingClientRect();
+  if(r.width<1||r.height<1) return;
+  const dpr=window.devicePixelRatio||1;
+  recCv.width=Math.round(r.width*dpr);
+  recCv.height=Math.round(r.height*dpr);
+  rg.setTransform(dpr,0,0,dpr,0,0);
+  recCW=Math.round(r.width); recCH=Math.round(r.height);
+}
+
+function drawRecGraph(cursorT){
+  resizeRecCanvas();
+  if(recCW<1||recCH<1) return;
+  rg.clearRect(0,0,recCW,recCH);
+  rg.fillStyle='#080809'; rg.fillRect(0,0,recCW,recCH);
+
+  const mid=recCH/2;
+  rg.strokeStyle='#4e4e50'; rg.lineWidth=1;
+  rg.beginPath(); rg.moveTo(0,mid); rg.lineTo(recCW,mid); rg.stroke();
+
+  if(recPitchHistory.length<2) return;
+  const dur=Math.max(0.1, recPitchHistory[recPitchHistory.length-1].time);
+  const CRV=50; // プレビューは固定 ±50 cents
+  const cyRec=(c)=>mid-(Math.max(-CRV,Math.min(CRV,c))/CRV)*(mid-4);
+
+  rg.beginPath();
+  recPitchHistory.forEach((p,i)=>{
+    const x=(p.time/dur)*recCW;
+    const y=cyRec(p.cents);
+    if(i===0) rg.moveTo(x,y); else rg.lineTo(x,y);
+  });
+  rg.strokeStyle='#32d74b'; rg.lineWidth=2;
+  rg.lineCap='round'; rg.lineJoin='round';
+  rg.stroke();
+
+  if(cursorT!=null){
+    const cx=(cursorT/dur)*recCW;
+    rg.strokeStyle='rgba(255,255,255,0.85)'; rg.lineWidth=1.5;
+    rg.beginPath(); rg.moveTo(cx,0); rg.lineTo(cx,recCH); rg.stroke();
+  }
+}
+
+function openRecPreview(){
+  const audioPreviewEl=document.getElementById('recAudioPreview');
+  const videoEl=document.getElementById('recVideoEl');
+
+  if(lastRecordWasVideo){
+    audioPreviewEl.style.display='none';
+    videoEl.style.display='block';
+    videoEl.src=previewURL;
+    videoEl.currentTime=0;
+  } else {
+    videoEl.style.display='none';
+    videoEl.removeAttribute('src');
+    audioPreviewEl.style.display='block';
+    const audioEl=document.getElementById('recAudioEl');
+    audioEl.src=previewURL;
+    audioEl.currentTime=0;
+    audioEl.ontimeupdate=()=>{
+      drawRecGraph(audioEl.currentTime);
+      updateRecTimeLabel(audioEl.currentTime, audioEl.duration);
+    };
+    audioEl.onended=()=>{ setRecPlayUI(false); };
+    audioEl.onloadedmetadata=()=>{ updateRecTimeLabel(0, audioEl.duration); };
+    setRecPlayUI(false);
+    requestAnimationFrame(()=>drawRecGraph(0));
+  }
+  document.getElementById('recModal').style.display='flex';
+}
+
+function toggleRecPlayback(){
+  const audioEl=document.getElementById('recAudioEl');
+  if(audioEl.paused){ audioEl.play(); setRecPlayUI(true); }
+  else { audioEl.pause(); setRecPlayUI(false); }
+}
+function setRecPlayUI(playing){
+  document.getElementById('recPlayBtn').textContent=playing?'⏸ 一時停止':'▶ 再生';
+}
+function updateRecTimeLabel(cur,dur){
+  document.getElementById('recTimeLabel').textContent=
+    formatRecTime(cur)+' / '+formatRecTime(isFinite(dur)?dur:cur);
+}
+
+function confirmSaveRecording(){
+  if(!previewBlob){ closeRecPreview(); return; }
+  let ext='webm';
+  if(recMimeType.includes('mp4')) ext=lastRecordWasVideo?'mp4':'m4a';
+  const ts=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const fname=`tuner_recording_${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`;
+
+  const a=document.createElement('a');
+  a.href=previewURL;
+  a.download=fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  closeRecPreview();
+}
+function discardRecording(){
+  closeRecPreview();
+}
+function closeRecPreview(){
+  const audioEl=document.getElementById('recAudioEl');
+  audioEl.pause();
+  audioEl.ontimeupdate=null; audioEl.onended=null; audioEl.onloadedmetadata=null;
+  audioEl.removeAttribute('src'); audioEl.load();
+
+  const videoEl=document.getElementById('recVideoEl');
+  videoEl.pause();
+  videoEl.removeAttribute('src'); videoEl.load();
+
+  document.getElementById('recModal').style.display='none';
+  if(previewURL){ URL.revokeObjectURL(previewURL); previewURL=null; }
+  previewBlob=null;
+  recPitchHistory=[];
+  recordedChunks=[];
 }
 
 // ══════════════════════════════════════
@@ -1174,6 +4667,14 @@ function setSpeed(v){
   const c=SPEED_CFG[parseInt(v)-1];
   freqBufMax=c.bufMax;noSigThresh=c.thresh;
   document.getElementById('speedLabel').textContent=c.label;
+}
+// マイクゲイン: 起動中はリアルタイムに追従、未起動時は次回startTuner()時に適用
+function onMicGainInput(input){
+  micGain=parseFloat(input.value);
+  document.getElementById('micGainVal').textContent=micGain.toFixed(1)+'x';
+  if(gainNode&&audioCtx){
+    gainNode.gain.setTargetAtTime(micGain,audioCtx.currentTime,0.01);
+  }
 }
 
 // ══════════════════════════════════════
